@@ -1,0 +1,8 @@
+wkhtmltopdf
+pdfplumber
+pdfkit
+requests
+beautifulsoup4
+pandas
+os
+json
