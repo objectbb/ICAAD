@@ -1,0 +1,29 @@
+{
+    "FILTER_COUNTRIES" : ["Fiji", "Papua new guinea", "Tonga", "Samoa"],
+    "YEAR_PREFIX" : "20",
+    "FORCE_REFRESH": "False",
+    "BASE_URL": "http://www.paclii.org/",
+    "COUNTRY_OUTPUT": "downloads/countries.csv",
+    "AVAILABLE_COUNTRY_LIST" : {
+    "American Samoa": "as",
+    "CNMI": "mp",
+    "Cook Islands": "ck",
+    "Fiji": "fj",
+    "FSM": "fm",
+    "Guam": "gu",
+    "Kiribati": "ki",
+    "Marshall Islands": "mh",
+    "Nauru": "nr",
+    "Niue": "nu",
+    "Nouvelle Calédonie": "nc",
+    "Palau": "pw",
+    "Papua New Guinea": "pg",
+    "Pitcairn Islands": "pn",
+    "Samoa": "ws",
+    "Solomon Islands": "sb",
+    "Tokelau": "tk",
+    "Tonga": "to",
+    "Tuvalu": "tv",
+    "Vanuatu": "vu"
+    }
+}
