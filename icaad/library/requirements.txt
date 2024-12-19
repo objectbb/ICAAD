@@ -1,0 +1,12 @@
+wkhtmltopdf
+pdfplumber
+pdfkit
+requests
+beautifulsoup4
+bs4
+ConfigParser
+python_json_config
+wkhtmltopdf
+OPenAI
+pandas
+boto3
