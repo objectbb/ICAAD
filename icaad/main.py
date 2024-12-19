@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from scripts.web_scraper import download_cases, upload_to_objectstore, init
 
 app = FastAPI()
-init()
+
 
 @app.get("/sync")
 async def sync():
@@ -11,5 +11,6 @@ async def sync():
 
 @app.get("/download")
 async def download():
+    init()
     return download_cases()
 

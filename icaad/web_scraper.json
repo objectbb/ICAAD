@@ -1,9 +1,6 @@
 {
     "FILTER_COUNTRIES": [
-        "Fiji",
-        "Papua new guinea",
-        "Tonga",
-        "Samoa"
+        "Tonga"
     ],
     "YEAR_PREFIX": "20",
     "FORCE_REFRESH": "False",
