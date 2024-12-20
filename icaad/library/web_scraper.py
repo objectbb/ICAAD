@@ -14,13 +14,13 @@ with open('web_scraper.json') as config_file:
     config = json.load(config_file)
 
 ### CONFIG
-FILTER_COUNTRIES = config['FILTER_COUNTRIES']
+#FILTER_COUNTRIES = config['FILTER_COUNTRIES']
 YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
 FORCE_REFRESH = True  ## Let this be false
 
 BASE_URL = config["BASE_URL"]
 COUNTRY_OUTPUT = config["COUNTRY_OUTPUT"]
-FILTER_COUNTRIES = [x.lower() for x in FILTER_COUNTRIES]
+
 COUNTRY_NAMESPACE_DICT = {}
 COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
@@ -238,7 +238,11 @@ def upload_to_objectstore():
     return response
 
 
-def init():
+def init(filter):
+
+    global FILTER_COUNTRIES 
+    FILTER_COUNTRIES = [x.lower() for x in filter["countries"]]
+
     global COUNTRY_NAMESPACE_DICT 
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
     global COUNTRY_YEAR_DICT 

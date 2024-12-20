@@ -1,10 +1,4 @@
 {
-    "FILTER_COUNTRIES": [
-        "Fiji",
-        "Papua new guinea",
-        "Tonga",
-        "Samoa"
-    ],
     "YEAR_PREFIX": "20",
     "FORCE_REFRESH": "False",
     "BASE_URL": "http://www.paclii.org/",
