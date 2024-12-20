@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import json
 from functools import wraps
@@ -14,26 +14,21 @@ async def exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc)},
     )
 
-@app.get("/hello")
+@app.get("/pacific/hello")
 async def hello():
     return "hiEEEEEEEE"
 
-@app.get("/status")
+@app.get("/pacific/status")
 async def status():
     return current_status()
 
-@app.get("/sync")
+@app.get("/pacific/sync")
 async def sync():
     return upload_to_objectstore()
 
-
-#?countries=[%20"Fiji",%20"Papua%20new%20guinea",%20"Tonga",%20"Samoa"%20]
-#curl -X POST "http://127.0.0.1:8000/download" -H  "accept: application/json" -H  "Content-Type: application/json" -d "{\"test_key\":\"test_val\"}"
-
-@app.get("/download")
+@app.get("/pacific/download")
 async def download(filters):
     json_convert = json.loads(filters)
     init(json_convert)
     return download_cases()
 
-#http://127.0.0.1:8000/download?filters=%20{%22countries%22:%20[%20%22Fiji%22,%20%22Papua%20new%20guinea%22,%20%22Tonga%22,%20%22Samoa%22%20]}

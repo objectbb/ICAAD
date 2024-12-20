@@ -14,7 +14,6 @@ with open('web_scraper.json') as config_file:
     config = json.load(config_file)
 
 ### CONFIG
-#FILTER_COUNTRIES = config['FILTER_COUNTRIES']
 YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
 FORCE_REFRESH = True  ## Let this be false
 
@@ -27,7 +26,7 @@ COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${c
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
 def logging(output):
-    print(output)
+    print(f"{output}")
 
 async def current_status():
     return ""
@@ -232,7 +231,7 @@ def upload_to_objectstore():
         for file in files:
             file_s3 = os.path.normpath(path + '/' + file)
             file_local = os.path.join(path, file)
-            logging("Upload:", file_local, "to target:", file_s3, end="")
+            logging(f"""Upload:{file_local} to target: {file_s3} """)
             response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
             logging(response)
     return response

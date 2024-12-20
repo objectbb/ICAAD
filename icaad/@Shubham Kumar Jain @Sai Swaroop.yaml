@@ -16,3 +16,8 @@ BUCKET_NAME: icaad-intake
 
 To access from python (boto)
 https://fly.io/docs/python/do-more/add-object-storage/
+
+
+#http://127.0.0.1:8000/download?filters=%20{%22countries%22:%20[%20%22Fiji%22,%20%22Papua%20new%20guinea%22,%20%22Tonga%22,%20%22Samoa%22%20]}
+
+http://127.0.0.1:8000/download?filters=%20{%22countries%22:%20[%20%22Papua%20new%20guinea%22]}
