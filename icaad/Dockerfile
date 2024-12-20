@@ -12,4 +12,9 @@ FROM python:3.13-slim
 WORKDIR /app
 COPY --from=builder /app/.venv .venv/
 COPY . .
+
+# Install wkhtmltopdf
+RUN apt update && apt -y upgrade
+RUN apt install -y --no-install-recommends wkhtmltopdf 
+
 CMD ["/app/.venv/bin/fastapi", "run"]

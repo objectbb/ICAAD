@@ -9,6 +9,11 @@ readme = "README.md"
 python = "^3.13"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
 boto3 = "^1.35.84"
+pandas = "^2.2.3"
+requests = "^2.32.3"
+bs4 = "^0.0.2"
+pdfkit = "^1.0.0"
+pdfplumber = "^0.11.4"
 
 
 [build-system]

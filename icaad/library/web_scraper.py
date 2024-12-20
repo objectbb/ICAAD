@@ -26,10 +26,11 @@ COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
-
-
 def logging(output):
     print(output)
+
+async def current_status():
+    return ""
 
 def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
@@ -45,7 +46,6 @@ def check_file_exists(file_path):
     else:
         logging(f"File '{file_path}' does not exist.")
         return False
-
 
 def save_dict_to_file(dictionary, file_path):
     with open(file_path, 'w') as file:
