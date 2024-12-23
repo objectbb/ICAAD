@@ -8,6 +8,7 @@ import pdfplumber
 import os
 import json
 import boto3
+from collections import defaultdict
 
 
 with open('web_scraper.json') as config_file:
@@ -15,7 +16,7 @@ with open('web_scraper.json') as config_file:
 
 ### CONFIG
 YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
-FORCE_REFRESH = True  ## Let this be false
+FORCE_REFRESH = config["FORCE_REFRESH"]   ## Let this be false
 
 BASE_URL = config["BASE_URL"]
 COUNTRY_OUTPUT = config["COUNTRY_OUTPUT"]
@@ -185,7 +186,7 @@ def generate_COUNTRY_YEAR_CASES_DICT():
     return COUNTRY_YEAR_CASES_DICT
 
 def download_cases():
-    return_msg = ""
+    return_msg = "Completed"
     logging(f"Start downloading...")
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
@@ -199,12 +200,38 @@ def download_cases():
                         download_html_as_pdf(url, file_path)
             logging(f"All Cases for {k} for year {year} have been downloaded.")
         else:
-            return_msg += "Empty "
+            return_msg = "No cases"
     return return_msg
 
-def upload_to_objectstore():
+async def report_per_country_local():
+    return_msg = ""
+    conversion_stats = defaultdict(dict)
+    logging(f"Start downloading...")
 
-    # Create S3 service client
+    for k,v in COUNTRY_YEAR_CASES_DICT.items():
+       
+        if v.items():
+            for year, urls in v.items():
+                conversion_stats[k][year] = {"missing": 0, "total": 0}
+               
+                for url in urls:
+                    case_num = url.split("/")[-1].split(".")[0]
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                   
+                    conversion_stats[k][year]["total"] +=1
+                    if check_file_exists(file_path) is False:
+                         conversion_stats[k][year]["missing"] +=1
+                       
+            logging(f"{conversion_stats}")
+        else:
+            return_msg = "No stats for country {k}"
+    return conversion_stats
+
+async def objectstore_stats():
+    return_msg = ""
+    conversion_stats = defaultdict(dict)
+  
+   # Create S3 service client
     svc = boto3.client(
     's3',
     aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
@@ -212,18 +239,36 @@ def upload_to_objectstore():
     endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
     )
 
-    # List buckets
-    response = svc.list_buckets()
+    for k,v in COUNTRY_YEAR_CASES_DICT.items():
+       
+        if v.items():
+            for year, urls in v.items():
+                conversion_stats[k][year] = {"missing": 0, "total": 0}
+               
+                for url in urls:
+                    case_num = url.split("/")[-1].split(".")[0]
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                   
+                    conversion_stats[k][year]["total"] +=1
 
-    for bucket in response['Buckets']:
-        logging(f'  {bucket["Name"]}')
+                    res = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"], Prefix=file_path, MaxKeys=1)
+                    if 'Contents' not in res:
+                        conversion_stats[k][year]["missing"] +=1
+     
+            logging(f"{conversion_stats}")
+        else:
+            print (f"No stats for country {k}")
+    return conversion_stats
 
-    # List objects
-    response = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"])
-
-    if response.get("Contents") is not None:
-        for obj in response['Contents']:
-            logging(f'  {obj["Key"]}')
+def upload_to_objectstore():
+    return_msg = "Completed"
+    # Create S3 service client
+    svc = boto3.client(
+    's3',
+    aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
+    endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
+    )
 
     # Upload file
     for path, dirs, files in os.walk("downloads/"):
@@ -234,8 +279,30 @@ def upload_to_objectstore():
             logging(f"""Upload:{file_local} to target: {file_s3} """)
             response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
             logging(response)
-    return response
+    return return_msg
 
+async def whats_on_objectstore():
+    resonse_msg = ""
+
+    # Create S3 service client
+    svc = boto3.client(
+    's3',
+    aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
+    endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
+    )
+
+    response = svc.list_buckets()
+
+    for bucket in response['Buckets']:
+        yield f'{bucket["Name"]}'
+
+    # List objects
+    response = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"])
+
+    if response.get("Contents") is not None:
+        for obj in response['Contents']:
+            yield f'{obj["Key"]}'
 
 def init(filter):
 
