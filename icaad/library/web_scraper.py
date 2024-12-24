@@ -9,7 +9,9 @@ import os
 import json
 import boto3
 from collections import defaultdict
-
+import time
+import asyncio
+import aiohttp
 
 with open('web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -31,6 +33,14 @@ def logging(output):
 
 async def current_status():
     return ""
+
+def convert_to_hms(seconds):
+    """Converts seconds to hours, minutes, and seconds."""
+
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    return hours, minutes, seconds
 
 def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
@@ -79,12 +89,16 @@ def get_year_cases():
             year = year_url.split("/")[-2]
             file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
             create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
-            if FORCE_REFRESH or check_file_exists(file_path) is False:
+
+            if FORCE_REFRESH is True or not check_file_exists(file_path):
                 download_html_as_pdf(year_url, file_path)
+
             urls = extract_links_from_pdf(file_path)
             urls = [x for x in urls if year in x]
             year_cases_dict[k][year] = urls
     return year_cases_dict
+
+
 
 def scrape_hyperlinks_to_csv(url, output_csv):
     try:
@@ -127,8 +141,9 @@ def get_countries_years():
         file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
         create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
 
-        if FORCE_REFRESH or check_file_exists(file_path) is False:
+        if FORCE_REFRESH is True or not check_file_exists(file_path):
             download_html_as_pdf(v, file_path)
+
         urls = extract_links_from_pdf(file_path)
         urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
         year_dict[k] = urls
@@ -188,6 +203,7 @@ def generate_COUNTRY_YEAR_CASES_DICT():
 def download_cases():
     return_msg = "Completed"
     logging(f"Start downloading...")
+    start_time = time.perf_counter()
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
         if v.items():
@@ -196,15 +212,21 @@ def download_cases():
                     case_num = url.split("/")[-1].split(".")[0]
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                     create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
-                    if check_file_exists(file_path) is False:
+
+                    if FORCE_REFRESH is True or not check_file_exists(file_path):
                         download_html_as_pdf(url, file_path)
+
             logging(f"All Cases for {k} for year {year} have been downloaded.")
         else:
             return_msg = "No cases"
-    return return_msg
+
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    return f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def report_per_country_local():
-    return_msg = ""
+    start_time = time.perf_counter()
     conversion_stats = defaultdict(dict)
     logging(f"Start downloading...")
 
@@ -225,10 +247,16 @@ async def report_per_country_local():
             logging(f"{conversion_stats}")
         else:
             return_msg = "No stats for country {k}"
+
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    conversion_stats["duration"] = f"{hours} hours, {minutes} minutes, {seconds} seconds"
     return conversion_stats
 
 async def objectstore_stats():
     return_msg = ""
+    start_time = time.perf_counter()
     conversion_stats = defaultdict(dict)
   
    # Create S3 service client
@@ -258,10 +286,18 @@ async def objectstore_stats():
             logging(f"{conversion_stats}")
         else:
             print (f"No stats for country {k}")
+
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    conversion_stats["duration"] = f"{hours} hours, {minutes} minutes, {seconds} seconds"
+
     return conversion_stats
 
 def upload_to_objectstore():
     return_msg = "Completed"
+    start_time = time.perf_counter()
+    
     # Create S3 service client
     svc = boto3.client(
     's3',
@@ -279,11 +315,16 @@ def upload_to_objectstore():
             logging(f"""Upload:{file_local} to target: {file_s3} """)
             response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
             logging(response)
-    return return_msg
+    
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    return f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def whats_on_objectstore():
-    resonse_msg = ""
+    return_msg = "Completed"
 
+    start_time = time.perf_counter()    
     # Create S3 service client
     svc = boto3.client(
     's3',
@@ -303,6 +344,11 @@ async def whats_on_objectstore():
     if response.get("Contents") is not None:
         for obj in response['Contents']:
             yield f'{obj["Key"]}'
+
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 def init(filter):
 

@@ -12,9 +12,12 @@ boto3 = "^1.35.84"
 pandas = "^2.2.3"
 requests = "^2.32.3"
 bs4 = "^0.0.2"
-pdfkit = "^1.0.0"
 pdfplumber = "^0.11.4"
 sse-starlette = "^2.2.0"
+asyncio = "^3.4.3"
+aiohttp = "^3.11.11"
+pdfkit-async = "^0.7.2"
+pdfkit = "^1.0.0"
 
 
 [build-system]
