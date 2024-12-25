@@ -39,13 +39,10 @@ async def objectstore_log():
 
 @app.get("/v0/pacific/sync")
 async def sync():
-    return await upload_to_objectstore()
+    return EventSourceResponse(upload_to_objectstore())
 
 @app.get("/v0/pacific/download")
 async def download(filters):
     json_convert = json.loads(filters)
     init(json_convert)
     return await download_cases()
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)

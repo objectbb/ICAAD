@@ -207,7 +207,6 @@ async def download_case(url,k,year):
     if FORCE_REFRESH is True or not check_file_exists(file_path):
         download_html_as_pdf(url, file_path)
 
-
 async def download_year_case(urls,k,year):
     L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
     return(L)
@@ -327,9 +326,11 @@ async def objectstore_stats():
 async def upload_file(svc, path, file):
     file_s3 = os.path.normpath(path + '/' + file)
     file_local = os.path.join(path, file)
-    logging(f"""Upload:{file_local} to target: {file_s3} """)
+    response_msg = f"""Upload:{file_local} to target: {file_s3} """
+    logging(response_msg)
     response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
     logging(response)
+    return f"response: {response} activity: {response_msg}"
 
 async def upload_to_objectstore():
     return_msg = "Completed"
@@ -348,6 +349,7 @@ async def upload_to_objectstore():
         logging(files)
         L = await asyncio.gather(*[upload_file(svc, path, file) for file in files])
         logging(L)
+        yield L
 
         ''' 
         for file in files:
@@ -360,7 +362,7 @@ async def upload_to_objectstore():
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
-    return f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
+    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def whats_on_objectstore():
     return_msg = "Completed"
