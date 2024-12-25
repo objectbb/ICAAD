@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -46,3 +47,5 @@ async def download(filters):
     init(json_convert)
     return download_cases()
 
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
