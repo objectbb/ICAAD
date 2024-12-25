@@ -299,6 +299,7 @@ async def objectstore_stats():
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
        
         if v.items():
+
             for year, urls in v.items():
                 conversion_stats[k][year] = {"missing": 0, "total": 0}
                
@@ -323,7 +324,14 @@ async def objectstore_stats():
 
     return conversion_stats
 
-def upload_to_objectstore():
+async def upload_file(svc, path, file):
+    file_s3 = os.path.normpath(path + '/' + file)
+    file_local = os.path.join(path, file)
+    logging(f"""Upload:{file_local} to target: {file_s3} """)
+    response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
+    logging(response)
+
+async def upload_to_objectstore():
     return_msg = "Completed"
     start_time = time.perf_counter()
     
@@ -338,13 +346,17 @@ def upload_to_objectstore():
     # Upload file
     for path, dirs, files in os.walk("downloads/"):
         logging(files)
+        L = await asyncio.gather(*[upload_file(svc, path, file) for file in files])
+        logging(L)
+
+        ''' 
         for file in files:
             file_s3 = os.path.normpath(path + '/' + file)
             file_local = os.path.join(path, file)
             logging(f"""Upload:{file_local} to target: {file_s3} """)
             response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
             logging(response)
-    
+        '''
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 

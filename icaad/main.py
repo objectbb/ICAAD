@@ -39,7 +39,7 @@ async def objectstore_log():
 
 @app.get("/v0/pacific/sync")
 async def sync():
-    return upload_to_objectstore()
+    return await upload_to_objectstore()
 
 @app.get("/v0/pacific/download")
 async def download(filters):
