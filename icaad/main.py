@@ -45,7 +45,7 @@ async def sync():
 async def download(filters):
     json_convert = json.loads(filters)
     init(json_convert)
-    return download_cases()
+    return await download_cases()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

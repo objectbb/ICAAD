@@ -11,7 +11,7 @@ import boto3
 from collections import defaultdict
 import time
 import asyncio
-import aiohttp
+import datetime
 
 with open('web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -148,14 +148,14 @@ def get_countries_years():
     return year_dict
 
 def download_html_as_pdf(url, output_pdf):
-    logging(f"Start downloading...{url} {output_pdf}")
+    logging(f"Start downloading...{url} {output_pdf} {datetime.datetime.now()}")
     try:
         # Define path to wkhtmltopdf binary, if needed. Uncomment below line if wkhtmltopdf isn't in PATH
         # pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
 
         # Convert the given URL to a PDF and save it locally
         pdfkit.from_url(url, output_pdf)
-        logging(f"PDF saved successfully as {output_pdf}")
+        logging(f"PDF saved successfully as {output_pdf} {datetime.datetime.now()}")
     except Exception as e:
         logging(f"Error occurred: {e}")
 
@@ -198,14 +198,44 @@ def generate_COUNTRY_YEAR_CASES_DICT():
     
     return COUNTRY_YEAR_CASES_DICT
 
-def download_cases():
+
+async def download_case(url,k,year):
+    case_num = url.split("/")[-1].split(".")[0]
+    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+
+    if FORCE_REFRESH is True or not check_file_exists(file_path):
+        download_html_as_pdf(url, file_path)
+
+
+async def download_year_case(urls,k,year):
+    L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
+    return(L)
+
+    '''
+    for url in urls:
+        case_num = url.split("/")[-1].split(".")[0]
+        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+        create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+
+        if FORCE_REFRESH is True or not check_file_exists(file_path):
+            download_html_as_pdf(url, file_path)
+    '''
+    logging(f"All Cases for {k} for year {year} have been downloaded.")
+
+async def download_cases():
     return_msg = "Completed"
     logging(f"Start downloading...")
     start_time = time.perf_counter()
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
         if v.items():
-            for year, urls in v.items():
+            #for year, urls in v.items():
+            L = await asyncio.gather(*[download_year_case(urls,k,year) for year, urls in v.items()])
+            print(L)
+
+            return_msg = L
+            ''' 
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
@@ -215,6 +245,7 @@ def download_cases():
                         download_html_as_pdf(url, file_path)
 
             logging(f"All Cases for {k} for year {year} have been downloaded.")
+            '''
         else:
             return_msg = "No cases"
 
