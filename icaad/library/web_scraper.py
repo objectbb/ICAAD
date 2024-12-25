@@ -211,7 +211,6 @@ def download_cases():
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                     create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
-                    print(f"{FORCE_REFRESH is True or not check_file_exists(file_path)} {FORCE_REFRESH} {check_file_exists(file_path)}")
                     if FORCE_REFRESH is True or not check_file_exists(file_path):
                         download_html_as_pdf(url, file_path)
 
