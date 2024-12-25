@@ -21,28 +21,27 @@ async def hello():
     return "hiEEEEEEEE"
 
 @app.get("/v0/pacific/stats")
-async def stats(filters):
+async def stats(filters,refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert)
+    init(json_convert,refresh)
     return await objectstore_stats()
 
 @app.get("/v0/pacific/local_stats")
-async def local_stats(filters):
+async def local_stats(filters,refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert)
+    init(json_convert,refresh)
     return await report_per_country_local()
      
 @app.get("/v0/pacific/objectstore_log")
 async def objectstore_log():
     return EventSourceResponse(whats_on_objectstore())
    
-
 @app.get("/v0/pacific/sync")
 async def sync():
     return EventSourceResponse(upload_to_objectstore())
 
 @app.get("/v0/pacific/download")
-async def download(filters):
+async def download(filters, refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert)
+    init(json_convert,refresh)
     return await download_cases()

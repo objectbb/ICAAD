@@ -42,6 +42,14 @@ def convert_to_hms(seconds):
 
     return hours, minutes, seconds
 
+def boto_client(service):
+    return boto3.client(
+        service,
+        aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
+        endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
+    )
+
 def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
@@ -61,7 +69,6 @@ def save_dict_to_file(dictionary, file_path):
     with open(file_path, 'w') as file:
         json.dump(dictionary, file)
     logging(f"Dictionary saved to '{file_path}'")
-
 
 def load_dict_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -124,7 +131,6 @@ def get_countries_namespaces():
         scrape_hyperlinks_to_csv(BASE_URL, COUNTRY_OUTPUT)
     df = pd.read_csv(COUNTRY_OUTPUT)
     filtered_df = df[df['Link Text'].str.lower().isin([value.lower() for value in FILTER_COUNTRIES])]
-    # column_values_list = filtered_df['column_name'].tolist()
     result_dict = pd.Series(filtered_df['URL'].values, index=filtered_df['Link Text']).to_dict()
     for k,v in result_dict.items():
         result_dict[k] = v.split("/")[1].split(".")[0]
@@ -150,10 +156,6 @@ def get_countries_years():
 def download_html_as_pdf(url, output_pdf):
     logging(f"Start downloading...{url} {output_pdf} {datetime.datetime.now()}")
     try:
-        # Define path to wkhtmltopdf binary, if needed. Uncomment below line if wkhtmltopdf isn't in PATH
-        # pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
-
-        # Convert the given URL to a PDF and save it locally
         pdfkit.from_url(url, output_pdf)
         logging(f"PDF saved successfully as {output_pdf} {datetime.datetime.now()}")
     except Exception as e:
@@ -162,11 +164,6 @@ def download_html_as_pdf(url, output_pdf):
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = "downloads/countries.json"
     COUNTRY_NAMESPACE_DICT = {}
-    ''' 
-    if check_file_exists(dict_file_path):
-        COUNTRY_NAMESPACE_DICT = load_dict_from_file(dict_file_path)
-    else:
-    '''
     COUNTRY_NAMESPACE_DICT = get_countries_namespaces()
     save_dict_to_file(COUNTRY_NAMESPACE_DICT, dict_file_path)
 
@@ -198,7 +195,6 @@ def generate_COUNTRY_YEAR_CASES_DICT():
     
     return COUNTRY_YEAR_CASES_DICT
 
-
 async def download_case(url,k,year):
     case_num = url.split("/")[-1].split(".")[0]
     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
@@ -209,18 +205,8 @@ async def download_case(url,k,year):
 
 async def download_year_case(urls,k,year):
     L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
+    logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
     return(L)
-
-    '''
-    for url in urls:
-        case_num = url.split("/")[-1].split(".")[0]
-        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-        create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
-
-        if FORCE_REFRESH is True or not check_file_exists(file_path):
-            download_html_as_pdf(url, file_path)
-    '''
-    logging(f"All Cases for {k} for year {year} have been downloaded.")
 
 async def download_cases():
     return_msg = "Completed"
@@ -229,22 +215,9 @@ async def download_cases():
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
         if v.items():
-            #for year, urls in v.items():
             L = await asyncio.gather(*[download_year_case(urls,k,year) for year, urls in v.items()])
             print(L)
-
             return_msg = L
-            ''' 
-                for url in urls:
-                    case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-                    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
-
-                    if FORCE_REFRESH is True or not check_file_exists(file_path):
-                        download_html_as_pdf(url, file_path)
-
-            logging(f"All Cases for {k} for year {year} have been downloaded.")
-            '''
         else:
             return_msg = "No cases"
 
@@ -288,17 +261,10 @@ async def objectstore_stats():
     conversion_stats = defaultdict(dict)
   
    # Create S3 service client
-    svc = boto3.client(
-    's3',
-    aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
-    aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
-    endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
-    )
+    svc = boto_client('s3')
 
-    for k,v in COUNTRY_YEAR_CASES_DICT.items():
-       
+    for k,v in COUNTRY_YEAR_CASES_DICT.items():      
         if v.items():
-
             for year, urls in v.items():
                 conversion_stats[k][year] = {"missing": 0, "total": 0}
                
@@ -337,12 +303,7 @@ async def upload_to_objectstore():
     start_time = time.perf_counter()
     
     # Create S3 service client
-    svc = boto3.client(
-    's3',
-    aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
-    aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
-    endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
-    )
+    svc = boto_client('s3')
 
     # Upload file
     for path, dirs, files in os.walk("downloads/"):
@@ -351,14 +312,6 @@ async def upload_to_objectstore():
         logging(L)
         yield L
 
-        ''' 
-        for file in files:
-            file_s3 = os.path.normpath(path + '/' + file)
-            file_local = os.path.join(path, file)
-            logging(f"""Upload:{file_local} to target: {file_s3} """)
-            response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
-            logging(response)
-        '''
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
@@ -369,13 +322,7 @@ async def whats_on_objectstore():
 
     start_time = time.perf_counter()    
     # Create S3 service client
-    svc = boto3.client(
-    's3',
-    aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
-    aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
-    endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
-    )
-
+    svc = boto_client('s3')
     response = svc.list_buckets()
 
     for bucket in response['Buckets']:
@@ -393,7 +340,10 @@ async def whats_on_objectstore():
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-def init(filter):
+def init(filter,refresh=False):
+
+    global FORCE_REFRESH
+    FORCE_REFRESH = refresh  == "True"
 
     global FILTER_COUNTRIES 
     FILTER_COUNTRIES = [x.lower() for x in filter["countries"]]
