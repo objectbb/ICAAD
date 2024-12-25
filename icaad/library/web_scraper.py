@@ -90,8 +90,7 @@ def get_year_cases():
             file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
             create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
-            print(f"get_countries_years {FORCE_REFRESH == "True"} {check_file_exists(file_path)}")
-            if FORCE_REFRESH == "True" or not check_file_exists(file_path):
+            if FORCE_REFRESH is True or not check_file_exists(file_path):
                 download_html_as_pdf(year_url, file_path)
 
             urls = extract_links_from_pdf(file_path)
@@ -139,8 +138,6 @@ def get_countries_years():
     for k,v in year_dict.items():
         file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
         create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
-
-        print(f"get_countries_years {FORCE_REFRESH == "True"} {check_file_exists(file_path)}")
 
         if FORCE_REFRESH is True or not check_file_exists(file_path):
             download_html_as_pdf(v, file_path)
@@ -214,9 +211,8 @@ def download_cases():
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                     create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
-                    print(f"download_cases {FORCE_REFRESH or check_file_exists(file_path)}")
-
-                    if FORCE_REFRESH is True or check_file_exists(file_path):
+                    print(f"{FORCE_REFRESH is True or not check_file_exists(file_path)} {FORCE_REFRESH} {check_file_exists(file_path)}")
+                    if FORCE_REFRESH is True or not check_file_exists(file_path):
                         download_html_as_pdf(url, file_path)
 
             logging(f"All Cases for {k} for year {year} have been downloaded.")
