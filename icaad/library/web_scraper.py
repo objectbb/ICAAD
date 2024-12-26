@@ -211,20 +211,24 @@ async def download_year_case(urls,k,year):
 async def download_cases():
     return_msg = "Completed"
     logging(f"Start downloading...")
+    yield "Start downloading..."
     start_time = time.perf_counter()
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
+
+        yield f"{k} {v}"
         if v.items():
             L = await asyncio.gather(*[download_year_case(urls,k,year) for year, urls in v.items()])
-            print(L)
+            logging(L)
             return_msg = L
         else:
             return_msg = "No cases"
 
+        yield return_msg
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
-    return f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
+    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def report_per_country_local():
     start_time = time.perf_counter()

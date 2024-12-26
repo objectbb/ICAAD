@@ -1,6 +1,6 @@
 {
+    "API_KEY" : "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",
     "SOURCE" : "sample_cases/sample_case1.pdf",
     "FE_CATEGORICAL_VARIABLES_FILE": "feature_extraction_prompts/baseline_4/Instructions_Categorical_Variables.pdf",
-    "FE_INSTRUCTIONS_NUANCED_VARIABLES_FILE": "feature_extraction_prompts/baseline_4/Instructions_Nuanced_Variables.pdf",
-    
+    "FE_INSTRUCTIONS_NUANCED_VARIABLES_FILE": "feature_extraction_prompts/baseline_4/Instructions_Nuanced_Variables.pdf"
 }

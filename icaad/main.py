@@ -1,10 +1,10 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from sse_starlette import EventSourceResponse
 import json
 from library.web_scraper import download_cases, upload_to_objectstore, init, whats_on_objectstore, objectstore_stats, report_per_country_local
+from library.inference import inference_initiate
 
 app = FastAPI()
 
@@ -44,4 +44,8 @@ async def sync():
 async def download(filters, refresh= False):
     json_convert = json.loads(filters)
     init(json_convert,refresh)
-    return await download_cases()
+    return EventSourceResponse(download_cases())
+
+@app.get("/v0/pacific/inference")
+async def inference(source):
+    return await inference_initiate(source)
