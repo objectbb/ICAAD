@@ -29,7 +29,7 @@ COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${c
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
 def logging(output):
-    print(f"{output}")
+    print(f"{output} {datetime.datetime.now()}")
 
 async def current_status():
     return ""
@@ -154,10 +154,10 @@ def get_countries_years():
     return year_dict
 
 def download_html_as_pdf(url, output_pdf):
-    logging(f"Start downloading...{url} {output_pdf} {datetime.datetime.now()}")
+    logging(f"Start downloading...{url} {output_pdf}")
     try:
         pdfkit.from_url(url, output_pdf)
-        logging(f"PDF saved successfully as {output_pdf} {datetime.datetime.now()}")
+        logging(f"PDF saved successfully as {output_pdf}")
     except Exception as e:
         logging(f"Error occurred: {e}")
 
@@ -211,12 +211,12 @@ async def download_year_case(urls,k,year):
 async def download_cases():
     return_msg = "Completed"
     logging(f"Start downloading...")
-    yield "Start downloading..."
+    yield f"Start downloading...{datetime.datetime.now()}"
     start_time = time.perf_counter()
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
 
-        yield f"{k} {v}"
+        yield f"{k} {v} {datetime.datetime.now()}"
         if v.items():
             L = await asyncio.gather(*[download_year_case(urls,k,year) for year, urls in v.items()])
             logging(L)
@@ -224,7 +224,8 @@ async def download_cases():
         else:
             return_msg = "No cases"
 
-        yield return_msg
+        yield f"{return_msg} {datetime.datetime.now()}"
+
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
