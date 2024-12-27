@@ -155,11 +155,14 @@ def get_countries_years():
 
 def download_html_as_pdf(url, output_pdf):
     logging(f"Start downloading...{url} {output_pdf}")
+
     try:
         pdfkit.from_url(url, output_pdf)
         logging(f"PDF saved successfully as {output_pdf}")
+        return True
     except Exception as e:
         logging(f"Error occurred: {e}")
+        return False
 
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = "downloads/countries.json"
@@ -206,8 +209,37 @@ async def download_case(url,k,year):
 async def download_year_case(urls,k,year):
     L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
     logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
-    return(L)
+    return L
 
+async def download_cases():
+    return_msg = "Completed"
+    logging(f"Start downloading...")
+    yield f"Start downloading...{datetime.datetime.now()}"
+
+    start_time = time.perf_counter()
+
+    for k,v in COUNTRY_YEAR_CASES_DICT.items():
+        if v.items():
+            for year, urls in v.items():
+                for url in urls:
+                    case_num = url.split("/")[-1].split(".")[0]
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+
+                    if FORCE_REFRESH is True or not check_file_exists(file_path):                     
+                        yield f"{file_path} {download_html_as_pdf(url, file_path)} {datetime.datetime.now()}"
+
+            return_msg = "All Cases for {k} for year {year} have been downloaded."
+        else:
+            return_msg = f"{k} No cases"
+
+        yield return_msg
+    duration = time.perf_counter() - start_time
+    hours, minutes, seconds = convert_to_hms(duration)
+
+    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
+
+''' 
 async def download_cases():
     return_msg = "Completed"
     logging(f"Start downloading...")
@@ -230,6 +262,7 @@ async def download_cases():
     hours, minutes, seconds = convert_to_hms(duration)
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
+'''
 
 async def report_per_country_local():
     start_time = time.perf_counter()
@@ -359,3 +392,4 @@ def init(filter,refresh=False):
     COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
     global COUNTRY_YEAR_CASES_DICT
     COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT()
+    
