@@ -7,11 +7,17 @@ import pdfkit
 import pdfplumber
 import os
 import json
-import boto3
 from collections import defaultdict
 import time
 import asyncio
 import datetime
+import botocore.session
+import boto3
+import aiohttp
+#import aioboto3
+import glob
+import re
+import gzip
 
 with open('web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -88,21 +94,43 @@ def extract_links_from_pdf(pdf_file):
                         urls.append(annot['uri'])
     return urls
 
-def get_year_cases():
+async def download_urls_year_cases(urls,k):
+    async with aiohttp.ClientSession() as session:
+        tasks = [download_site_year_cases(year_url, session,k) for year_url in urls]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+async def download_site_year_cases(url, session,k):
+    year = url.split("/")[-2]
+    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.html"
+
+    print(f"download_site_year_cases {url}")
+    
+    if FORCE_REFRESH is True or not check_file_exists(file_path):
+        async with session.get(url.replace("http:","https:")) as response:
+            html = await response.text()
+            print(response)
+            with open(file_path, mode="wb") as file: 
+                html = await response.text()           
+                file.write(html)
+       
+async def get_year_cases():
     year_cases_dict = {}
+    logging(f"Start downloading...get_year_cases")
+    
     for k,v in COUNTRY_YEAR_DICT.items():
         year_cases_dict[k] = {}
-        for year_url in v:
-            year = year_url.split("/")[-2]
-            file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
-            create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+        L = await download_urls_year_cases(v,k)
 
-            if FORCE_REFRESH is True or not check_file_exists(file_path):
-                download_html_as_pdf(year_url, file_path)
+    files = glob.glob('downloads/countries/*/*/indexes.html')
+    for file_path in files:
+        print(file_path)
+        urls = extract_links_from_pdf(file_path)
+        year = file_path.split("/")[-2]
+        urls = [x for x in urls if year in x]
+        
+    year_cases_dict[k][year] = urls
 
-            urls = extract_links_from_pdf(file_path)
-            urls = [x for x in urls if year in x]
-            year_cases_dict[k][year] = urls
     return year_cases_dict
 
 def scrape_hyperlinks_to_csv(url, output_csv):
@@ -153,6 +181,32 @@ def get_countries_years():
         year_dict[k] = urls
     return year_dict
 
+async def run(cmd):
+    proc = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+
+    stdout, stderr = await proc.communicate()
+
+    logging(f'[{cmd!r} exited with {proc.returncode}]')
+    if stdout:
+        logging(f'[stdout]\n{stdout.decode()}')
+    if stderr:
+        logging(f'[stderr]\n{stderr.decode()}')
+
+'''
+async def download_html_as_pdf_async(url, output_pdf):
+    logging(f"Start downloading...async..{url} {output_pdf}")
+
+    try:
+        run(pdfkit.from_url(url, output_pdf))
+        logging(f"PDF saved successfully as {output_pdf}")
+        return True
+    except Exception as e:
+        logging(f"Error occurred: {e}")
+        return False
+'''    
 def download_html_as_pdf(url, output_pdf):
     logging(f"Start downloading...{url} {output_pdf}")
 
@@ -163,7 +217,7 @@ def download_html_as_pdf(url, output_pdf):
     except Exception as e:
         logging(f"Error occurred: {e}")
         return False
-
+    
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = "downloads/countries.json"
     COUNTRY_NAMESPACE_DICT = {}
@@ -187,42 +241,76 @@ def generate_COUNTRY_YEAR_DICT():
 
     return COUNTRY_YEAR_DICT
 
-def generate_COUNTRY_YEAR_CASES_DICT():
+async def generate_COUNTRY_YEAR_CASES_DICT():
     dict_file_path = "downloads/countries_years_urls.json"
+    logging("generate_COUNTRY_YEAR_CASES_DICT()")
     COUNTRY_YEAR_CASES_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_CASES_DICT = load_dict_from_file(dict_file_path)
     else:
-        COUNTRY_YEAR_CASES_DICT = get_year_cases()
+        logging("await get_year_cases()")
+        COUNTRY_YEAR_CASES_DICT = await get_year_cases()
         save_dict_to_file(COUNTRY_YEAR_CASES_DICT, dict_file_path)
     
     return COUNTRY_YEAR_CASES_DICT
 
 '''
-async def download_case(url,k,year):
-    case_num = url.split("/")[-1].split(".")[0]
-    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+def download_html(url, output_pdf):
+    logging(f"Start downloading html...{url} {output_pdf}")
 
-    if FORCE_REFRESH is True or not check_file_exists(file_path):
-        download_html_as_pdf(url, file_path)
+    try:
+        #pdfkit.from_url(url, output_pdf)
 
+        logging(f"PDF saved successfully as {output_pdf}")
+        return True
+    except Exception as e:
+        logging(f"Error occurred: {e}")
+        return False
+'''    
+
+def convert_to_html(path, output_pdf):
+    logging(f"Start downloading...{path} {output_pdf}")
+
+    try:
+        pdfkit.from_url(path, output_pdf)
+        logging(f"PDF saved successfully as {output_pdf}")
+        return True
+    except Exception as e:
+        logging(f"Error occurred: {e}")
+        return False
+    
+''' 
 async def download_year_case(urls,k,year):
     L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
     logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
     return L
 '''
+
+async def download_urls(urls,k,year):
+    async with aiohttp.ClientSession() as session:
+        tasks = [download_site(url, session, k, year) for url in urls]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+async def download_site(url, session, k, year):
+    async with session.get(url) as response:
+        case_num = url.split("/")[-1].split(".")[0]
+        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.html"
+        with open(file_path, mode="wb") as file:
+            file.write(response.content)
+            return file_path
+
 async def download_cases():
     return_msg = "Completed"
-    download_cases_start_msg = f"Start downloading...{datetime.datetime.now()}"
-    logging(download_cases_start_msg)
-    yield download_cases_start_msg
+    start_msg = f"Start downloading cases...{datetime.datetime.now()}"
+    logging(start_msg)
+    yield start_msg
 
     start_time = time.perf_counter()
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
         if v.items():
             for year, urls in v.items():
+                ''' 
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
@@ -230,6 +318,17 @@ async def download_cases():
 
                     if FORCE_REFRESH is True or not check_file_exists(file_path):                     
                         yield f"{file_path} {download_html_as_pdf(url, file_path)} {datetime.datetime.now()}"
+                '''
+                L = await asyncio.gather(*[download_urls(urls,k,year) for url in urls])
+                logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
+
+                ''' 
+                for url in urls:
+                    case_num = url.split("/")[-1].split(".")[0]
+                    html_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.html"
+                    convert_to_html(html_path)
+                '''
+                logging(f"All Cases for {k} for year {year} have been converted pdf.")
 
             return_msg = f"All Cases for {k} for year {year} have been downloaded."
         else:
@@ -269,7 +368,7 @@ async def download_cases():
 async def report_per_country_local():
     start_time = time.perf_counter()
     conversion_stats = defaultdict(dict)
-    logging(f"Start downloading...")
+    logging(f"Start calculations...")
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
        
@@ -295,6 +394,24 @@ async def report_per_country_local():
     conversion_stats["duration"] = f"{hours} hours, {minutes} minutes, {seconds} seconds"
     return conversion_stats
 
+async def boto_paginator(service,cmd):
+    session = botocore.session.get_session()
+    client = session.create_client(cmd)
+    async with client.client(service, aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
+            endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]) as s3_client:
+
+            return s3_client.get_paginator(cmd)
+    
+async def paginator(service,cmd):
+    client = aioboto3.Session()
+    async with client.client(service, aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
+        endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]) as s3_client:
+        
+        return s3_client.get_paginator(cmd)
+    
+    
 async def objectstore_stats():
     return_msg = ""
     start_time = time.perf_counter()
@@ -302,6 +419,9 @@ async def objectstore_stats():
   
    # Create S3 service client
     svc = boto_client('s3')
+    #pg = boto_paginator('s3','list_objects_v2')
+
+    #pg = await paginator('s3','list_objects_v2')
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():      
         if v.items():
@@ -314,10 +434,18 @@ async def objectstore_stats():
                    
                     conversion_stats[k][year]["total"] +=1
 
+                    '''
+                    async for page in pg.paginate(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"], Prefix=file_path):
+                       # for obj in page.get('Contents', []):
+                        #print(obj['Key'])
+                        if file_path not in page.get('Contents', [])['Key']:
+                            conversion_stats[k][year]["missing"] +=1
+                    '''                
+                             
                     res = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"], Prefix=file_path, MaxKeys=1)
                     if 'Contents' not in res:
                         conversion_stats[k][year]["missing"] +=1
-     
+                    
             logging(f"{conversion_stats}")
         else:
             print (f"No stats for country {k}")
@@ -380,7 +508,7 @@ async def whats_on_objectstore():
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-def init(filter,refresh=False):
+async def init(filter,refresh=False):
 
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
@@ -392,6 +520,7 @@ def init(filter,refresh=False):
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
     global COUNTRY_YEAR_DICT 
     COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
+
     global COUNTRY_YEAR_CASES_DICT
-    COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT()
+    COUNTRY_YEAR_CASES_DICT = await generate_COUNTRY_YEAR_CASES_DICT()
     

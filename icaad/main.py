@@ -43,8 +43,9 @@ async def sync():
 @app.get("/v0/pacific/download")
 async def download(filters, refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert,refresh)
-    return EventSourceResponse(download_cases())
+    await init(json_convert,refresh)
+    return "hello"
+    #return EventSourceResponse(download_cases())
 
 @app.get("/v0/pacific/inference")
 async def inference(source):
