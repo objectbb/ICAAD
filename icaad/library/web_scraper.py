@@ -198,6 +198,7 @@ def generate_COUNTRY_YEAR_CASES_DICT():
     
     return COUNTRY_YEAR_CASES_DICT
 
+'''
 async def download_case(url,k,year):
     case_num = url.split("/")[-1].split(".")[0]
     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
@@ -210,11 +211,12 @@ async def download_year_case(urls,k,year):
     L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
     logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
     return L
-
+'''
 async def download_cases():
     return_msg = "Completed"
-    logging(f"Start downloading...")
-    yield f"Start downloading...{datetime.datetime.now()}"
+    download_cases_start_msg = f"Start downloading...{datetime.datetime.now()}"
+    logging(download_cases_start_msg)
+    yield download_cases_start_msg
 
     start_time = time.perf_counter()
 
@@ -229,7 +231,7 @@ async def download_cases():
                     if FORCE_REFRESH is True or not check_file_exists(file_path):                     
                         yield f"{file_path} {download_html_as_pdf(url, file_path)} {datetime.datetime.now()}"
 
-            return_msg = "All Cases for {k} for year {year} have been downloaded."
+            return_msg = f"All Cases for {k} for year {year} have been downloaded."
         else:
             return_msg = f"{k} No cases"
 
