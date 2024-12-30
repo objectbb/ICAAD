@@ -7,11 +7,18 @@ import pdfkit
 import pdfplumber
 import os
 import json
-import boto3
 from collections import defaultdict
 import time
 import asyncio
 import datetime
+import botocore.session
+import boto3
+import aiohttp
+#import aioboto3
+import glob
+import re
+import gzip
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 with open('web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -152,7 +159,7 @@ def get_countries_years():
         urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
         year_dict[k] = urls
     return year_dict
-
+  
 def download_html_as_pdf(url, output_pdf):
     logging(f"Start downloading...{url} {output_pdf}")
 
@@ -163,7 +170,7 @@ def download_html_as_pdf(url, output_pdf):
     except Exception as e:
         logging(f"Error occurred: {e}")
         return False
-
+    
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = "downloads/countries.json"
     COUNTRY_NAMESPACE_DICT = {}
@@ -197,26 +204,23 @@ def generate_COUNTRY_YEAR_CASES_DICT():
         save_dict_to_file(COUNTRY_YEAR_CASES_DICT, dict_file_path)
     
     return COUNTRY_YEAR_CASES_DICT
+   
+def convert_to_html(path, output_pdf):
+    logging(f"Start downloading...{path} {output_pdf}")
 
-'''
-async def download_case(url,k,year):
-    case_num = url.split("/")[-1].split(".")[0]
-    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+    try:
+        pdfkit.from_url(path, output_pdf)
+        logging(f"PDF saved successfully as {output_pdf}")
+        return True
+    except Exception as e:
+        logging(f"Error occurred: {e}")
+        return False
 
-    if FORCE_REFRESH is True or not check_file_exists(file_path):
-        download_html_as_pdf(url, file_path)
-
-async def download_year_case(urls,k,year):
-    L = await asyncio.gather(*[download_case(url,k,year) for url in urls])
-    logging(f"All Cases for {k} for year {year} have been downloaded {L}.")
-    return L
-'''
-async def download_cases():
+def download_cases():
     return_msg = "Completed"
-    download_cases_start_msg = f"Start downloading...{datetime.datetime.now()}"
-    logging(download_cases_start_msg)
-    yield download_cases_start_msg
+    status_msg = f"Start downloading cases..."
+
+    logging(status_msg)
 
     start_time = time.perf_counter()
 
@@ -228,48 +232,29 @@ async def download_cases():
                     file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                     create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
-                    if FORCE_REFRESH is True or not check_file_exists(file_path):                     
-                        yield f"{file_path} {download_html_as_pdf(url, file_path)} {datetime.datetime.now()}"
+                    if FORCE_REFRESH is True or not check_file_exists(file_path):
+                        st = time.perf_counter()
+                        download_html_as_pdf(url, file_path)
+                        dt = time.perf_counter() - st
+                        hours, minutes, seconds = convert_to_hms(dt)
+                        yield f"{file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-            return_msg = f"All Cases for {k} for year {year} have been downloaded."
+            status_msg = f"All Cases for {k} for year {year} have been downloaded."
+
+            logging(status_msg)
+            yield f"{status_msg}  {datetime.datetime.now()}"
         else:
-            return_msg = f"{k} No cases"
-
-        yield return_msg
-    duration = time.perf_counter() - start_time
-    hours, minutes, seconds = convert_to_hms(duration)
-
-    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
-
-''' 
-async def download_cases():
-    return_msg = "Completed"
-    logging(f"Start downloading...")
-    yield f"Start downloading...{datetime.datetime.now()}"
-    start_time = time.perf_counter()
-
-    for k,v in COUNTRY_YEAR_CASES_DICT.items():
-
-        yield f"{k} {v} {datetime.datetime.now()}"
-        if v.items():
-            L = await asyncio.gather(*[download_year_case(urls,k,year) for year, urls in v.items()])
-            logging(L)
-            return_msg = L
-        else:
-            return_msg = "No cases"
-
-        yield f"{return_msg} {datetime.datetime.now()}"
+            return_msg = "No cases for {k}"
 
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
-'''
 
 async def report_per_country_local():
     start_time = time.perf_counter()
     conversion_stats = defaultdict(dict)
-    logging(f"Start downloading...")
+    logging(f"Start calculations...")
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
        
@@ -287,14 +272,14 @@ async def report_per_country_local():
                        
             logging(f"{conversion_stats}")
         else:
-            return_msg = "No stats for country {k}"
+            return_msg = f"No stats for country {k}"
 
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
     conversion_stats["duration"] = f"{hours} hours, {minutes} minutes, {seconds} seconds"
     return conversion_stats
-
+        
 async def objectstore_stats():
     return_msg = ""
     start_time = time.perf_counter()
@@ -317,10 +302,10 @@ async def objectstore_stats():
                     res = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"], Prefix=file_path, MaxKeys=1)
                     if 'Contents' not in res:
                         conversion_stats[k][year]["missing"] +=1
-     
+                    
             logging(f"{conversion_stats}")
         else:
-            print (f"No stats for country {k}")
+            logging (f"No stats for country {k}")
 
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
@@ -380,7 +365,7 @@ async def whats_on_objectstore():
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-def init(filter,refresh=False):
+async def init(filter,refresh=False):
 
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
@@ -392,6 +377,7 @@ def init(filter,refresh=False):
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
     global COUNTRY_YEAR_DICT 
     COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
+
     global COUNTRY_YEAR_CASES_DICT
     COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT()
     

@@ -23,13 +23,13 @@ async def hello():
 @app.get("/v0/pacific/stats")
 async def stats(filters,refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert,refresh)
+    await init(json_convert,refresh)
     return await objectstore_stats()
 
 @app.get("/v0/pacific/local_stats")
 async def local_stats(filters,refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert,refresh)
+    await init(json_convert,refresh)
     return await report_per_country_local()
      
 @app.get("/v0/pacific/objectstore_log")
@@ -43,7 +43,7 @@ async def sync():
 @app.get("/v0/pacific/download")
 async def download(filters, refresh= False):
     json_convert = json.loads(filters)
-    init(json_convert,refresh)
+    await init(json_convert,refresh)
     return EventSourceResponse(download_cases())
 
 @app.get("/v0/pacific/inference")
