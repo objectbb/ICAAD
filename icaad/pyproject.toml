@@ -20,6 +20,7 @@ pdfkit-async = "^0.7.2"
 pdfkit = "^1.0.0"
 uvicorn = "^0.34.0"
 openai = "^1.58.1"
+flask-login = "^0.6.3"
 
 
 [build-system]
