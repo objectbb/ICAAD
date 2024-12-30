@@ -244,7 +244,7 @@ def download_cases():
             logging(status_msg)
             yield f"{status_msg}  {datetime.datetime.now()}"
         else:
-            return_msg = "No cases for {k}"
+            return_msg = f"No cases for {k}"
 
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
