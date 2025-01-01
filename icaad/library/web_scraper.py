@@ -11,14 +11,8 @@ from collections import defaultdict
 import time
 import asyncio
 import datetime
-import botocore.session
 import boto3
-import aiohttp
-#import aioboto3
-import glob
-import re
-import gzip
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import uuid
 
 with open('web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -28,8 +22,11 @@ YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
 FORCE_REFRESH = config["FORCE_REFRESH"] == "True"   ## Let this be false
 
 BASE_URL = config["BASE_URL"]
-COUNTRY_OUTPUT = config["COUNTRY_OUTPUT"]
+#COUNTRY_OUTPUT = config["COUNTRY_OUTPUT"]
 
+COUNTRY_OUTPUT = ""
+
+global COUNTRY_NAMESPACE_DICT 
 COUNTRY_NAMESPACE_DICT = {}
 COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
@@ -73,7 +70,7 @@ def check_file_exists(file_path):
         return False
 
 def save_dict_to_file(dictionary, file_path):
-    with open(file_path, 'w') as file:
+    with open(file_path, 'a+') as file:
         json.dump(dictionary, file)
     logging(f"Dictionary saved to '{file_path}'")
 
@@ -101,8 +98,8 @@ def get_year_cases():
         year_cases_dict[k] = {}
         for year_url in v:
             year = year_url.split("/")[-2]
-            file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
-            create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+            file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}/indexes.pdf"
+            create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}")
 
             if FORCE_REFRESH is True or not check_file_exists(file_path):
                 download_html_as_pdf(year_url, file_path)
@@ -133,24 +130,26 @@ def scrape_hyperlinks_to_csv(url, output_csv):
         logging(f"An error occurred: {e}")
 
 def get_countries_namespaces():
-    create_directory_if_not_exists("downloads")
+    create_directory_if_not_exists(f"downloads/{uuid_str}")
     if check_file_exists(COUNTRY_OUTPUT) is False:
         scrape_hyperlinks_to_csv(BASE_URL, COUNTRY_OUTPUT)
     df = pd.read_csv(COUNTRY_OUTPUT)
     filtered_df = df[df['Link Text'].str.lower().isin([value.lower() for value in FILTER_COUNTRIES])]
-    result_dict = pd.Series(filtered_df['URL'].values, index=filtered_df['Link Text']).to_dict()
+    
+    result_dict = {}
+    result_dict= pd.Series(filtered_df['URL'].values, index=filtered_df['Link Text']).to_dict()
     for k,v in result_dict.items():
         result_dict[k] = v.split("/")[1].split(".")[0]
     return result_dict
 
 def get_countries_years():
     year_dict = {}
-    for k,v in COUNTRY_NAMESPACE_DICT.items():
+    for k,v in COUNTRY_NAMESPACE_DICT[uuid_str].items():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
     create_directory_if_not_exists("downloads/countries")
     for k,v in year_dict.items():
-        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
-        create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
+        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/indexes.pdf"
+        create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}")
 
         if FORCE_REFRESH is True or not check_file_exists(file_path):
             download_html_as_pdf(v, file_path)
@@ -172,17 +171,14 @@ def download_html_as_pdf(url, output_pdf):
         return False
     
 def generate_COUNTRY_NAMESPACE_DICT():
-    dict_file_path = "downloads/countries.json"
-    COUNTRY_NAMESPACE_DICT = {}
-    COUNTRY_NAMESPACE_DICT = get_countries_namespaces()
-    save_dict_to_file(COUNTRY_NAMESPACE_DICT, dict_file_path)
+    dict_file_path = f"downloads/{uuid_str}/countries.json"
+    local_COUNTRY_NAMESPACE_DICT = get_countries_namespaces()
+    save_dict_to_file(local_COUNTRY_NAMESPACE_DICT, dict_file_path)
 
-    logging(COUNTRY_NAMESPACE_DICT)
-
-    return COUNTRY_NAMESPACE_DICT
+    return local_COUNTRY_NAMESPACE_DICT
 
 def generate_COUNTRY_YEAR_DICT():
-    dict_file_path = "downloads/countries_urls.json"
+    dict_file_path = f"downloads/{uuid_str}/countries_urls.json"
     COUNTRY_YEAR_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_DICT = load_dict_from_file(dict_file_path)
@@ -195,7 +191,7 @@ def generate_COUNTRY_YEAR_DICT():
     return COUNTRY_YEAR_DICT
 
 def generate_COUNTRY_YEAR_CASES_DICT():
-    dict_file_path = "downloads/countries_years_urls.json"
+    dict_file_path = f"downloads/{uuid_str}/countries_years_urls.json"
     COUNTRY_YEAR_CASES_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_CASES_DICT = load_dict_from_file(dict_file_path)
@@ -218,7 +214,7 @@ def convert_to_html(path, output_pdf):
 
 def download_cases():
     return_msg = "Completed"
-    status_msg = f"Start downloading cases..."
+    status_msg = f"Start downloading cases...{COUNTRY_NAMESPACE_DICT}"
 
     logging(status_msg)
 
@@ -229,8 +225,9 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-                    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+                    logging(f"{COUNTRY_NAMESPACE_DICT}")
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}/cases/{case_num}.pdf"
+                    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}/cases")
 
                     if FORCE_REFRESH is True or not check_file_exists(file_path):
                         st = time.perf_counter()
@@ -264,7 +261,7 @@ async def report_per_country_local():
                
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
                     if check_file_exists(file_path) is False:
@@ -295,7 +292,7 @@ async def objectstore_stats():
                
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[uuid_str][k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
 
@@ -367,14 +364,22 @@ async def whats_on_objectstore():
 
 async def init(filter,refresh=False):
 
+    global uuid_str
+    uuid_str = str(uuid.uuid4())
+
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
+
+    global COUNTRY_OUTPUT
+    COUNTRY_OUTPUT = f"downloads/{uuid_str}/countries.csv"
 
     global FILTER_COUNTRIES 
     FILTER_COUNTRIES = [x.lower() for x in filter["countries"]]
 
-    global COUNTRY_NAMESPACE_DICT 
-    COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
+    COUNTRY_NAMESPACE_DICT[uuid_str] = generate_COUNTRY_NAMESPACE_DICT()
+    print(f"prior {COUNTRY_NAMESPACE_DICT}")
+
+
     global COUNTRY_YEAR_DICT 
     COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
 
