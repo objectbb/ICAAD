@@ -49,12 +49,20 @@ def convert_to_hms(seconds):
 
     return hours, minutes, seconds
 
+env_aws_access_key_id = (config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID")) [os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID") is not None]
+env_aws_secret_access_key = (config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"], os.environ.get("OBJECTSTORE_AWS_SECRET_ACCESS_KEY") ) [os.environ.get("OBJECTSTORE_AWS_SECRET_ACCESS_KEY") is not None]
+env_endpoint_url = (config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"], os.environ.get("OBJECTSTORE_AWS_ENDPOINT_URL_S3")) [os.environ.get("OBJECTSTORE_AWS_ENDPOINT_URL_S3") is not None]
+env_bucket_name = (config["AWS_CREDENTIALS"]["BUCKET_NAME"], os.environ.get("OBJECTSTORE_BUCKET_NAME"))  [os.environ.get("OBJECTSTORE_BUCKET_NAME") is not None]
+
+print(f"{os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID")} {config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"]}")
+
+
 def boto_client(service):
     return boto3.client(
         service,
-        aws_access_key_id=config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"],
-        endpoint_url=config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"]
+        aws_access_key_id = env_aws_access_key_id,
+        aws_secret_access_key = env_aws_secret_access_key ,
+        endpoint_url = env_endpoint_url
     )
 
 def create_directory_if_not_exists(directory_path):
@@ -299,7 +307,7 @@ async def objectstore_stats():
                    
                     conversion_stats[k][year]["total"] +=1
 
-                    res = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"], Prefix=file_path, MaxKeys=1)
+                    res = svc.list_objects_v2(Bucket=env_bucket_name, Prefix=file_path, MaxKeys=1)
                     if 'Contents' not in res:
                         conversion_stats[k][year]["missing"] +=1
                     
@@ -319,7 +327,7 @@ async def upload_file(svc, path, file):
     file_local = os.path.join(path, file)
     response_msg = f"""Upload:{file_local} to target: {file_s3} """
     logging(response_msg)
-    response = svc.upload_file(file_local, config["AWS_CREDENTIALS"]["BUCKET_NAME"], file_s3)
+    response = svc.upload_file(file_local, env_bucket_name, file_s3)
     logging(response)
     return f"response: {response} activity: {response_msg}"
 
@@ -354,7 +362,7 @@ async def whats_on_objectstore():
         yield f'{bucket["Name"]}'
 
     # List objects
-    response = svc.list_objects_v2(Bucket=config["AWS_CREDENTIALS"]["BUCKET_NAME"])
+    response = svc.list_objects_v2(Bucket=env_bucket_name)
 
     if response.get("Contents") is not None:
         for obj in response['Contents']:
