@@ -15,7 +15,6 @@ import botocore.session
 import boto3
 from dotenv import load_dotenv
 
-
 here = os.path.dirname(os.path.abspath(__file__))
 with open(f'{here}/web_scraper.json') as config_file:
     config = json.load(config_file)
@@ -35,8 +34,8 @@ AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 def logging(output):
     print(f"{output} {datetime.datetime.now()}")
 
-async def current_status():
-    return ""
+def file_size_string(path):
+    return f"Size: {os.stat(path).st_size >> 10} kb"
 
 def convert_to_hms(seconds):
     """Converts seconds to hours, minutes, and seconds."""
@@ -240,7 +239,7 @@ def download_cases():
                         download_html_as_pdf(url, file_path)
                         dt = time.perf_counter() - st
                         hours, minutes, seconds = convert_to_hms(dt)
-                        yield f"{file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds"
+                        yield f"{file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(file_path)}"
 
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
 
