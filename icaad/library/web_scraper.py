@@ -13,14 +13,11 @@ import asyncio
 import datetime
 import botocore.session
 import boto3
-import aiohttp
-#import aioboto3
-import glob
-import re
-import gzip
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from dotenv import load_dotenv
 
-with open('web_scraper.json') as config_file:
+
+here = os.path.dirname(os.path.abspath(__file__))
+with open(f'{here}/web_scraper.json') as config_file:
     config = json.load(config_file)
 
 ### CONFIG
@@ -49,13 +46,11 @@ def convert_to_hms(seconds):
 
     return hours, minutes, seconds
 
-env_aws_access_key_id = (config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"],os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID")) [os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID") is not None]
-env_aws_secret_access_key = (config["AWS_CREDENTIALS"]["AWS_SECRET_ACCESS_KEY"], os.environ.get("OBJECTSTORE_AWS_SECRET_ACCESS_KEY") ) [os.environ.get("OBJECTSTORE_AWS_SECRET_ACCESS_KEY") is not None]
-env_endpoint_url = (config["AWS_CREDENTIALS"]["AWS_ENDPOINT_URL_S3"], os.environ.get("OBJECTSTORE_AWS_ENDPOINT_URL_S3")) [os.environ.get("OBJECTSTORE_AWS_ENDPOINT_URL_S3") is not None]
-env_bucket_name = (config["AWS_CREDENTIALS"]["BUCKET_NAME"], os.environ.get("OBJECTSTORE_BUCKET_NAME"))  [os.environ.get("OBJECTSTORE_BUCKET_NAME") is not None]
-
-print(f"{os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID")} {config["AWS_CREDENTIALS"]["AWS_ACCESS_KEY_ID"]}")
-
+load_dotenv()
+env_aws_access_key_id = os.environ.get("OBJECTSTORE_AWS_ACCESS_KEY_ID")
+env_aws_secret_access_key = os.environ.get("OBJECTSTORE_AWS_SECRET_ACCESS_KEY")
+env_endpoint_url = os.environ.get("OBJECTSTORE_AWS_ENDPOINT_URL_S3")
+env_bucket_name = os.environ.get("OBJECTSTORE_BUCKET_NAME")
 
 def boto_client(service):
     return boto3.client(
@@ -109,8 +104,8 @@ def get_year_cases():
         year_cases_dict[k] = {}
         for year_url in v:
             year = year_url.split("/")[-2]
-            file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
-            create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+            file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
+            create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
             if FORCE_REFRESH is True or not check_file_exists(file_path):
                 download_html_as_pdf(year_url, file_path)
@@ -141,7 +136,7 @@ def scrape_hyperlinks_to_csv(url, output_csv):
         logging(f"An error occurred: {e}")
 
 def get_countries_namespaces():
-    create_directory_if_not_exists("downloads")
+    create_directory_if_not_exists(f"/{here}/downloads")
     if check_file_exists(COUNTRY_OUTPUT) is False:
         scrape_hyperlinks_to_csv(BASE_URL, COUNTRY_OUTPUT)
     df = pd.read_csv(COUNTRY_OUTPUT)
@@ -155,10 +150,10 @@ def get_countries_years():
     year_dict = {}
     for k,v in COUNTRY_NAMESPACE_DICT.items():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
-    create_directory_if_not_exists("downloads/countries")
+    create_directory_if_not_exists(f"/{here}/downloads/countries")
     for k,v in year_dict.items():
-        file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
-        create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
+        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
+        create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
 
         if FORCE_REFRESH is True or not check_file_exists(file_path):
             download_html_as_pdf(v, file_path)
@@ -180,7 +175,7 @@ def download_html_as_pdf(url, output_pdf):
         return False
     
 def generate_COUNTRY_NAMESPACE_DICT():
-    dict_file_path = "downloads/countries.json"
+    dict_file_path = f"{here}/downloads/countries.json"
     COUNTRY_NAMESPACE_DICT = {}
     COUNTRY_NAMESPACE_DICT = get_countries_namespaces()
     save_dict_to_file(COUNTRY_NAMESPACE_DICT, dict_file_path)
@@ -190,7 +185,7 @@ def generate_COUNTRY_NAMESPACE_DICT():
     return COUNTRY_NAMESPACE_DICT
 
 def generate_COUNTRY_YEAR_DICT():
-    dict_file_path = "downloads/countries_urls.json"
+    dict_file_path = f"{here}/downloads/countries_urls.json"
     COUNTRY_YEAR_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_DICT = load_dict_from_file(dict_file_path)
@@ -203,7 +198,7 @@ def generate_COUNTRY_YEAR_DICT():
     return COUNTRY_YEAR_DICT
 
 def generate_COUNTRY_YEAR_CASES_DICT():
-    dict_file_path = "downloads/countries_years_urls.json"
+    dict_file_path = f"{here}/downloads/countries_years_urls.json"
     COUNTRY_YEAR_CASES_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_CASES_DICT = load_dict_from_file(dict_file_path)
@@ -237,8 +232,8 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-                    create_directory_if_not_exists(f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+                    file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
                     if FORCE_REFRESH is True or not check_file_exists(file_path):
                         st = time.perf_counter()
@@ -272,7 +267,7 @@ async def report_per_country_local():
                
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
                     if check_file_exists(file_path) is False:
@@ -303,7 +298,7 @@ async def objectstore_stats():
                
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
 
@@ -339,7 +334,7 @@ async def upload_to_objectstore():
     svc = boto_client('s3')
 
     # Upload file
-    for path, dirs, files in os.walk("downloads/"):
+    for path, dirs, files in os.walk(f"/{here}/downloads/"):
         logging(files)
         L = await asyncio.gather(*[upload_file(svc, path, file) for file in files])
         logging(L)
