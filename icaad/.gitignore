@@ -1,3 +1,5 @@
 downloads/
 icaad/path/to/venv/
 __pycache__/
+notes.txt
+.env
