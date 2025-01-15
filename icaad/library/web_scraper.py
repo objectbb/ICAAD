@@ -31,6 +31,10 @@ COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
+global TOTAL_DOWNLOADS
+TOTAL_DOWNLOADS = 0
+
+
 def logging(output):
     print(f"{output} {datetime.datetime.now()}")
 
@@ -101,7 +105,8 @@ def get_year_cases():
     year_cases_dict = {}
     for k,v in COUNTRY_YEAR_DICT.items():
         year_cases_dict[k] = {}
-        for year_url in v:
+        
+        for year_url in v:  
             year = year_url.split("/")[-2]
             file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
             create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
@@ -112,6 +117,7 @@ def get_year_cases():
             urls = extract_links_from_pdf(file_path)
             urls = [x for x in urls if year in x]
             year_cases_dict[k][year] = urls
+
     return year_cases_dict
 
 def scrape_hyperlinks_to_csv(url, output_csv):
@@ -184,6 +190,7 @@ def generate_COUNTRY_NAMESPACE_DICT():
     return COUNTRY_NAMESPACE_DICT
 
 def generate_COUNTRY_YEAR_DICT():
+    TOTAL_DOWNLOADS = 0
     dict_file_path = f"{here}/downloads/countries_urls.json"
     COUNTRY_YEAR_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
@@ -221,10 +228,16 @@ def convert_to_html(path, output_pdf):
 def download_cases():
     return_msg = "Completed"
     status_msg = f"Start downloading cases..."
+    download_counter = 0
+    TOTAL_DOWNLOADS = 0
 
     logging(status_msg)
 
     start_time = time.perf_counter()
+
+    for k,v in COUNTRY_YEAR_CASES_DICT.items():
+        for year, urls in v.items():
+            TOTAL_DOWNLOADS += len(urls)
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
         if v.items():
@@ -239,7 +252,8 @@ def download_cases():
                         download_html_as_pdf(url, file_path)
                         dt = time.perf_counter() - st
                         hours, minutes, seconds = convert_to_hms(dt)
-                        yield f"{file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(file_path)}"
+                        download_counter+=1
+                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(file_path)}"
 
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
 
@@ -251,15 +265,17 @@ def download_cases():
     duration = time.perf_counter() - start_time
     hours, minutes, seconds = convert_to_hms(duration)
 
-    yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
+    yield f"{return_msg} {download_counter}/{TOTAL_DOWNLOADS} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def report_per_country_local():
     start_time = time.perf_counter()
     conversion_stats = defaultdict(dict)
     logging(f"Start calculations...")
+    total_missing = 0
+    total = 0
 
     for k,v in COUNTRY_YEAR_CASES_DICT.items():
-       
+        conversion_stats[k] = {"missing": 0, "total": 0}
         if v.items():
             for year, urls in v.items():
                 conversion_stats[k][year] = {"missing": 0, "total": 0}
@@ -269,10 +285,14 @@ async def report_per_country_local():
                     file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
+                    total +=1
                     if check_file_exists(file_path) is False:
                          conversion_stats[k][year]["missing"] +=1
+                         total_missing +=1
                        
             logging(f"{conversion_stats}")
+            conversion_stats[k]["total"] = total
+            conversion_stats[k]["missing"] = total_missing
         else:
             return_msg = f"No stats for country {k}"
 
@@ -368,6 +388,7 @@ async def whats_on_objectstore():
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def init(filter,refresh=False):
+
 
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
