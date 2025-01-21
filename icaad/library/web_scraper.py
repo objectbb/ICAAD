@@ -108,8 +108,8 @@ def get_year_cases():
         
         for year_url in v:  
             year = year_url.split("/")[-2]
-            file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
-            create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+            file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
+            create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
             if FORCE_REFRESH is True or not check_file_exists(file_path):
                 download_html_as_pdf(year_url, file_path)
@@ -121,8 +121,11 @@ def get_year_cases():
     return year_cases_dict
 
 def scrape_hyperlinks_to_csv(url, output_csv):
+
+    print(f"scrape_hyperlinks_to_csv {url} {output_csv}")
+
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         links = soup.find_all('a')
@@ -141,10 +144,10 @@ def scrape_hyperlinks_to_csv(url, output_csv):
         logging(f"An error occurred: {e}")
 
 def get_countries_namespaces():
-    create_directory_if_not_exists(f"/{here}/downloads")
-    if check_file_exists(COUNTRY_OUTPUT) is False:
-        scrape_hyperlinks_to_csv(BASE_URL, COUNTRY_OUTPUT)
-    df = pd.read_csv(COUNTRY_OUTPUT)
+    create_directory_if_not_exists(f"{here}/downloads")
+    if check_file_exists(f"{here}/{COUNTRY_OUTPUT}") is False:
+        scrape_hyperlinks_to_csv(BASE_URL, f"{here}/{COUNTRY_OUTPUT}")
+    df = pd.read_csv(f"{here}/{COUNTRY_OUTPUT}")
     filtered_df = df[df['Link Text'].str.lower().isin([value.lower() for value in FILTER_COUNTRIES])]
     result_dict = pd.Series(filtered_df['URL'].values, index=filtered_df['Link Text']).to_dict()
     for k,v in result_dict.items():
@@ -155,10 +158,10 @@ def get_countries_years():
     year_dict = {}
     for k,v in COUNTRY_NAMESPACE_DICT.items():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
-    create_directory_if_not_exists(f"/{here}/downloads/countries")
+    create_directory_if_not_exists(f"{here}/downloads/countries")
     for k,v in year_dict.items():
         file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
-        create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
+        create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
 
         if FORCE_REFRESH is True or not check_file_exists(file_path):
             download_html_as_pdf(v, file_path)
@@ -244,8 +247,8 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
-                    create_directory_if_not_exists(f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
+                    file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
                     if FORCE_REFRESH is True or not check_file_exists(file_path):
                         st = time.perf_counter()
@@ -317,7 +320,7 @@ async def objectstore_stats():
                
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"/{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = f"downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
                    
                     conversion_stats[k][year]["total"] +=1
 
@@ -337,7 +340,7 @@ async def objectstore_stats():
     return conversion_stats
 
 async def upload_file(svc, path, file):
-    file_s3 = os.path.normpath(path + '/' + file)
+    file_s3 = os.path.normpath(file)
     file_local = os.path.join(path, file)
     response_msg = f"""Upload:{file_local} to target: {file_s3} """
     logging(response_msg)
@@ -353,7 +356,7 @@ async def upload_to_objectstore():
     svc = boto_client('s3')
 
     # Upload file
-    for path, dirs, files in os.walk(f"/{here}/downloads/"):
+    for path, dirs, files in os.walk(f"{here}/downloads/countries"):
         logging(files)
         L = await asyncio.gather(*[upload_file(svc, path, file) for file in files])
         logging(L)
@@ -388,8 +391,6 @@ async def whats_on_objectstore():
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def init(filter,refresh=False):
-
-
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
 

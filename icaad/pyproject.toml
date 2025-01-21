@@ -8,7 +8,6 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.13"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
-boto3 = "^1.35.84"
 pandas = "^2.2.3"
 requests = "^2.32.3"
 bs4 = "^0.0.2"
@@ -21,6 +20,7 @@ aiohttp = "^3.11.11"
 sse-starlette = "^2.2.1"
 python-dotenv = "^1.0.1"
 pdfkit = "^1.0.0"
+boto3 = "1.35.99"
 
 
 [build-system]

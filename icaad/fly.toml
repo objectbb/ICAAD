@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for icaad-rough-darkness-2519 on 2025-01-04T20:13:19-06:00
+# fly.toml app configuration file generated for icaad-dark-forest-1718 on 2025-01-17T20:06:58-06:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'icaad-rough-darkness-2519'
+app = 'icaad-dark-forest-1718'
 primary_region = 'ord'
 
 [build]

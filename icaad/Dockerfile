@@ -4,9 +4,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 
-RUN pip install poetry
+RUN pip install poetry==1.8.5
 RUN poetry config virtualenvs.in-project true
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml poetry.lock README.md ./
 RUN poetry install
 FROM python:3.13-slim
 WORKDIR /app
