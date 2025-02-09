@@ -1,10 +1,11 @@
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.responses import JSONResponse
 from sse_starlette import EventSourceResponse
 import json
 from library.web_scraper import download_cases, upload_to_objectstore, init, whats_on_objectstore, objectstore_stats, report_per_country_local
 from library.inference import inference_initiate
+from library.utils import json_decode_config
 
 app = FastAPI()
 
@@ -21,13 +22,13 @@ async def hello():
     return "hiEEEEEEEE"
 
 @app.get("/v0/pacific/stats")
-async def stats(filters,refresh= False):
+async def stats(filters, refresh= False):
     json_convert = json.loads(filters)
     await init(json_convert,refresh)
     return await objectstore_stats()
 
 @app.get("/v0/pacific/local_stats")
-async def local_stats(filters,refresh= False):
+async def local_stats(filters, refresh= False):
     json_convert = json.loads(filters)
     await init(json_convert,refresh)
     return await report_per_country_local()
@@ -41,9 +42,9 @@ async def sync():
     return EventSourceResponse(upload_to_objectstore())
 
 @app.get("/v0/pacific/download")
-async def download(filters, refresh= False):
-    json_convert = json.loads(filters)
-    await init(json_convert,refresh)
+async def download(encoded_config: str = Query(..., description="JSON-encoded config string"), refresh: bool = Query(False, description="Optional refresh option")):
+    json_convert = json_decode_config(encoded_config)
+    await init(json_convert, refresh)
     return EventSourceResponse(download_cases())
 
 @app.get("/v0/pacific/inference")
