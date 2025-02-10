@@ -390,7 +390,7 @@ async def whats_on_objectstore():
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-async def init(filter,refresh=False):
+async def init(filter, refresh=False):
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
 
