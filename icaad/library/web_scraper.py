@@ -39,7 +39,10 @@ def logging(output):
     print(f"{output} {datetime.datetime.now()}")
 
 def file_size_string(path):
-    return f"Size: {os.stat(path).st_size >> 10} kb"
+    if os.path.exists(path):
+        return f"Size: {os.stat(path).st_size >> 10} kb"
+    else:
+        return f"file does not exists {path}"
 
 def convert_to_hms(seconds):
     """Converts seconds to hours, minutes, and seconds."""
@@ -108,13 +111,16 @@ def get_year_cases():
         
         for year_url in v:  
             year = year_url.split("/")[-2]
-            file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
+            file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes"
+            pdf_file = f"{file_path}.pdf"
+            html_file = f"{file_path}.html"
             create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
-            if FORCE_REFRESH is True or not check_file_exists(file_path):
-                download_html_as_pdf(year_url, file_path)
+            if FORCE_REFRESH is True or not check_file_exists(pdf_file):
+               # download_html_as_pdf(year_url, file_path)
+                download_html_as_pdf(year_url, html_file, pdf_file)
 
-            urls = extract_links_from_pdf(file_path)
+            urls = extract_links_from_pdf(pdf_file)
             urls = [x for x in urls if year in x]
             year_cases_dict[k][year] = urls
 
@@ -160,23 +166,30 @@ def get_countries_years():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
     create_directory_if_not_exists(f"{here}/downloads/countries")
     for k,v in year_dict.items():
-        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes.pdf"
+        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes"
+        pdf_file = f"{file_path}.pdf"
+        html_file = f"{file_path}.html"
+        
         create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
 
-        if FORCE_REFRESH is True or not check_file_exists(file_path):
-            download_html_as_pdf(v, file_path)
+        if FORCE_REFRESH is True or not check_file_exists(pdf_file):
+            #download_html_as_pdf(v, file_path)
+            download_html_as_pdf(v, html_file, pdf_file)
 
-        urls = extract_links_from_pdf(file_path)
+        urls = extract_links_from_pdf(pdf_file)
         urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
         year_dict[k] = urls
     return year_dict
   
-def download_html_as_pdf(url, output_pdf):
-    logging(f"Start downloading...{url} {output_pdf}")
+def download_html_as_pdf(url, html_file, output_pdf):
+    logging(f"Start downloading...{url} {html_file} {output_pdf}")
 
     try:
-        pdfkit.from_url(url, output_pdf)
-        logging(f"PDF saved successfully as {output_pdf}")
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
+        response.raise_for_status()
+        with open(html_file, mode='w', encoding='utf-8') as file:
+            file.write(response.text)
+        pdfkit.from_file(html_file, output_pdf, verbose=True)
         return True
     except Exception as e:
         logging(f"Error occurred: {e}")
@@ -217,17 +230,6 @@ def generate_COUNTRY_YEAR_CASES_DICT():
     
     return COUNTRY_YEAR_CASES_DICT
    
-def convert_to_html(path, output_pdf):
-    logging(f"Start downloading...{path} {output_pdf}")
-
-    try:
-        pdfkit.from_url(path, output_pdf)
-        logging(f"PDF saved successfully as {output_pdf}")
-        return True
-    except Exception as e:
-        logging(f"Error occurred: {e}")
-        return False
-
 def download_cases():
     return_msg = "Completed"
     status_msg = f"Start downloading cases..."
@@ -247,16 +249,19 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}.pdf"
+                    file_path = "{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}"
+                    pdf_file = f"{file_path}.pdf"
+                    html_file = f"{file_path}.html"
+
                     create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases")
 
-                    if FORCE_REFRESH is True or not check_file_exists(file_path):
+                    if FORCE_REFRESH is True or not check_file_exists(pdf_file):
                         st = time.perf_counter()
-                        download_html_as_pdf(url, file_path)
+                        download_html_as_pdf(url, html_file, pdf_file)
                         dt = time.perf_counter() - st
                         hours, minutes, seconds = convert_to_hms(dt)
                         download_counter+=1
-                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(file_path)}"
+                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(html_file)}"
 
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
 
