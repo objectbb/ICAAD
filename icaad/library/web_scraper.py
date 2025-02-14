@@ -14,6 +14,7 @@ import datetime
 import botocore.session
 import boto3
 from dotenv import load_dotenv
+import random
 
 here = os.path.dirname(os.path.abspath(__file__))
 with open(f'{here}/web_scraper.json') as config_file:
@@ -33,7 +34,6 @@ AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
 global TOTAL_DOWNLOADS
 TOTAL_DOWNLOADS = 0
-
 
 def logging(output):
     print(f"{output} {datetime.datetime.now()}")
@@ -131,8 +131,8 @@ def scrape_hyperlinks_to_csv(url, output_csv):
     print(f"scrape_hyperlinks_to_csv {url} {output_csv}")
 
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
-        response.raise_for_status()
+        response = get_http_request(url)
+
         soup = BeautifulSoup(response.content, 'html.parser')
         links = soup.find_all('a')
         with open(output_csv, mode='w', newline='', encoding='utf-8') as file:
@@ -172,6 +172,8 @@ def get_countries_years():
         
         create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
 
+        logging(f'get_countries_years() {pdf_file} {html_file}')
+        
         if FORCE_REFRESH is True or not check_file_exists(pdf_file):
             #download_html_as_pdf(v, file_path)
             download_html_as_pdf(v, html_file, pdf_file)
@@ -181,12 +183,33 @@ def get_countries_years():
         year_dict[k] = urls
     return year_dict
   
+
+retry_delay = 1
+
+def get_http_request(url):
+    user_agents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+    "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"
+    ]
+    response = requests.get(url, headers={'User-Agent': random.choice(user_agents)})
+    response.raise_for_status()
+     
+    if response.status_code == 429:  # Rate limit hit
+        print("Rate limit reached, backing off...")
+        time.sleep(retry_delay)
+        retry_delay *= 2  # Double the delay each time rate limit is hit
+    else:
+        print(response.status_code)
+        retry_delay = 1 
+
+    return response
+
 def download_html_as_pdf(url, html_file, output_pdf):
     logging(f"Start downloading...{url} {html_file} {output_pdf}")
 
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
-        response.raise_for_status()
+        response = get_http_request(url)
         with open(html_file, mode='w', encoding='utf-8') as file:
             file.write(response.text)
         pdfkit.from_file(html_file, output_pdf, verbose=True)
