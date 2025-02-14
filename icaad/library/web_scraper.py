@@ -32,7 +32,7 @@ COUNTRY_NAMESPACE_DICT = {}
 COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
-
+USER_AGENTS = config["USER_AGENTS"]
 global TOTAL_DOWNLOADS
 TOTAL_DOWNLOADS = 0
 
@@ -122,11 +122,10 @@ def get_year_cases():
 
             if FORCE_REFRESH is True or not check_file_exists(pdf_file):
                # download_html_as_pdf(year_url, file_path)
-                download_html_as_pdf(year_url, html_file, pdf_file)
-
-            urls = extract_links_from_pdf(pdf_file)
-            urls = [x for x in urls if year in x]
-            year_cases_dict[k][year] = urls
+                if download_html_as_pdf(year_url, html_file, pdf_file):
+                    urls = extract_links_from_pdf(pdf_file)
+                    urls = [x for x in urls if year in x]
+                    year_cases_dict[k][year] = urls
 
     return year_cases_dict
 
@@ -175,60 +174,46 @@ def get_countries_years():
         html_file = f"{file_path}.html"
         
         create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
-
-        logging(f'get_countries_years() {pdf_file} {html_file}')
         
         if FORCE_REFRESH is True or not check_file_exists(pdf_file):
             #download_html_as_pdf(v, file_path)
-            download_html_as_pdf(v, html_file, pdf_file)
+            if download_html_as_pdf(v, html_file, pdf_file):
 
-        urls = extract_links_from_pdf(pdf_file)
-        print(f'{urls}')
-
-        logging(f'get_countries_years() before year_dict {year_dict} {v} {YEAR_PREFIX}') 
-        
-        urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
-        year_dict[k] = urls
-
-        logging(f'get_countries_years() after year_dict {year_dict}') 
+                urls = extract_links_from_pdf(pdf_file)
+                urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
+                year_dict[k] = urls
 
     return year_dict
   
 def get_http_request(url):
     global retry_delay
 
-    user_agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
-    "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"
-    ]
-    response = requests.get(url, headers={'User-Agent': random.choice(user_agents)})
-    response.raise_for_status()
-     
-    if response.status_code == 429:  # Rate limit hit
-        print("Rate limit reached, backing off...")
-        time.sleep(retry_delay)
-        retry_delay *= 2  # Double the delay each time rate limit is hit
-    else:
-        print(response.status_code)
-        retry_delay = 1 
+    try:
 
-    return response
+        response = requests.get(url, headers={'User-Agent': random.choice(USER_AGENTS)})
+        response.raise_for_status()
+        
+        if response.status_code == 429:  # Rate limit hit
+            logging("Rate limit reached, backing off...")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Double the delay each time rate limit is hit
+        else:
+            logging(response.status_code)
+            retry_delay = 1 
+
+        return response
+    except Exception as e:
+        retry_delay *= 2
+        logging(f"Error occurred: retry_delay: {retry_delay} {e}")
 
 def pdfkit_request(url, output_pdf):
 
     global retry_delay
 
     try:
-        user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
-        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"
-        ]
-
         options = {
             'custom-header': [
-                ('User-Agent', random.choice(user_agents))
+                ('User-Agent', random.choice(USER_AGENTS))
                 ]
             }
             
@@ -236,15 +221,16 @@ def pdfkit_request(url, output_pdf):
         result = pdfkit.from_url(url, output_pdf, options=options)
 
         if result:
+            logging(f'{output_pdf} ... saved')
             retry_delay = 1
             return True
 
     except Exception as e:
         retry_delay *= 2
-        logging(f"PDFKitError occurred: {e}")
+        logging(f"Error occurred: retry_delay: {retry_delay} {e}")
      
 def download_html_as_pdf(url, html_file, output_pdf):
-    logging(f"Start downloading...{url} {html_file} {output_pdf}")
+    logging(f"Start downloading...{url} {output_pdf}")
 
     try:
         return pdfkit_request(url, output_pdf)
@@ -252,19 +238,6 @@ def download_html_as_pdf(url, html_file, output_pdf):
     except Exception as e:
         logging(f"Error occurred: {e}")
         return False
-
-'''
-def download_html_as_pdf(url, output_pdf):
-    try:
-        # Define path to wkhtmltopdf binary, if needed. Uncomment below line if wkhtmltopdf isn't in PATH
-        # pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
-
-        # Convert the given URL to a PDF and save it locally
-        pdfkit.from_url(url, output_pdf)
-        print(f"PDF saved successfully as {output_pdf}")
-    except Exception as e:
-        print(f"Error occurred: {e}")
-'''   
     
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = f"{here}/downloads/countries.json"
@@ -328,11 +301,11 @@ def download_cases():
 
                     if FORCE_REFRESH is True or not check_file_exists(pdf_file):
                         st = time.perf_counter()
-                        download_html_as_pdf(url, html_file, pdf_file)
-                        dt = time.perf_counter() - st
-                        hours, minutes, seconds = convert_to_hms(dt)
-                        download_counter+=1
-                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {pdf_file} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(pdf_file)}"
+                        if download_html_as_pdf(url, html_file, pdf_file):
+                            dt = time.perf_counter() - st
+                            hours, minutes, seconds = convert_to_hms(dt)
+                            download_counter+=1
+                            yield f"{download_counter}/{TOTAL_DOWNLOADS} {pdf_file} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(pdf_file)}"
 
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
 
