@@ -20,6 +20,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 with open(f'{here}/web_scraper.json') as config_file:
     config = json.load(config_file)
 
+
 ### CONFIG
 YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
 FORCE_REFRESH = config["FORCE_REFRESH"] == "True"   ## Let this be false
@@ -34,6 +35,9 @@ AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
 
 global TOTAL_DOWNLOADS
 TOTAL_DOWNLOADS = 0
+
+global retry_delay
+retry_delay = 1
 
 def logging(output):
     print(f"{output} {datetime.datetime.now()}")
@@ -101,7 +105,7 @@ def extract_links_from_pdf(pdf_file):
             if annotations:
                 for annot in annotations:
                     if 'uri' in annot:
-                        urls.append(annot['uri'])
+                        urls.append(annot['uri'])               
     return urls
 
 def get_year_cases():
@@ -166,8 +170,8 @@ def get_countries_years():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
     create_directory_if_not_exists(f"{here}/downloads/countries")
     for k,v in year_dict.items():
-        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes"
-        pdf_file = f"{file_path}.pdf"
+        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/index"
+        pdf_file = f"{file_path}es.pdf"
         html_file = f"{file_path}.html"
         
         create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
@@ -179,14 +183,20 @@ def get_countries_years():
             download_html_as_pdf(v, html_file, pdf_file)
 
         urls = extract_links_from_pdf(pdf_file)
+        print(f'{urls}')
+
+        logging(f'get_countries_years() before year_dict {year_dict} {v} {YEAR_PREFIX}') 
+        
         urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
         year_dict[k] = urls
+
+        logging(f'get_countries_years() after year_dict {year_dict}') 
+
     return year_dict
   
-
-retry_delay = 1
-
 def get_http_request(url):
+    global retry_delay
+
     user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
@@ -205,18 +215,56 @@ def get_http_request(url):
 
     return response
 
+def pdfkit_request(url, output_pdf):
+
+    global retry_delay
+
+    try:
+        user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"
+        ]
+
+        options = {
+            'custom-header': [
+                ('User-Agent', random.choice(user_agents))
+                ]
+            }
+            
+        time.sleep(retry_delay)
+        result = pdfkit.from_url(url, output_pdf, options=options)
+
+        if result:
+            retry_delay = 1
+            return True
+
+    except Exception as e:
+        retry_delay *= 2
+        logging(f"PDFKitError occurred: {e}")
+     
 def download_html_as_pdf(url, html_file, output_pdf):
     logging(f"Start downloading...{url} {html_file} {output_pdf}")
 
     try:
-        response = get_http_request(url)
-        with open(html_file, mode='w', encoding='utf-8') as file:
-            file.write(response.text)
-        pdfkit.from_file(html_file, output_pdf, verbose=True)
-        return True
+        return pdfkit_request(url, output_pdf)
+
     except Exception as e:
         logging(f"Error occurred: {e}")
         return False
+
+'''
+def download_html_as_pdf(url, output_pdf):
+    try:
+        # Define path to wkhtmltopdf binary, if needed. Uncomment below line if wkhtmltopdf isn't in PATH
+        # pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
+
+        # Convert the given URL to a PDF and save it locally
+        pdfkit.from_url(url, output_pdf)
+        print(f"PDF saved successfully as {output_pdf}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+'''   
     
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = f"{here}/downloads/countries.json"
@@ -272,7 +320,7 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = "{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}"
+                    file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}"
                     pdf_file = f"{file_path}.pdf"
                     html_file = f"{file_path}.html"
 
@@ -284,7 +332,7 @@ def download_cases():
                         dt = time.perf_counter() - st
                         hours, minutes, seconds = convert_to_hms(dt)
                         download_counter+=1
-                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(html_file)}"
+                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {pdf_file} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(pdf_file)}"
 
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
 
@@ -419,6 +467,7 @@ async def whats_on_objectstore():
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def init(filter,refresh=False):
+
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
 
