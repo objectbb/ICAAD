@@ -111,7 +111,7 @@ def get_year_cases(filters):
         
         for year_url in v:  
             year = year_url.split("/")[-2]
-            if filter_year(year, filters[k].get("start_year", 0), filters[k].get("eng_year", 999999)):
+            if filter_year(year, filters[k].get("start_year", 0), filters[k].get("end_year", 999999)):
                 file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
                 create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
@@ -196,7 +196,7 @@ def generate_COUNTRY_NAMESPACE_DICT():
 
     return COUNTRY_NAMESPACE_DICT
 
-def generate_COUNTRY_YEAR_DICT():
+def generate_COUNTRY_YEAR_DICT(filters):
     TOTAL_DOWNLOADS = 0
     dict_file_path = f"{here}/downloads/countries_urls.json"
     COUNTRY_YEAR_DICT = {}
@@ -404,7 +404,7 @@ async def init(filters, refresh=False):
     global COUNTRY_NAMESPACE_DICT 
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
     global COUNTRY_YEAR_DICT 
-    COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
+    COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT(filters)
 
     global COUNTRY_YEAR_CASES_DICT
     COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT(filters)
