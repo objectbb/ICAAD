@@ -188,38 +188,38 @@ def download_html_as_pdf(url, output_pdf):
     
 def generate_COUNTRY_NAMESPACE_DICT():
     dict_file_path = f"{here}/downloads/countries.json"
-    COUNTRY_NAMESPACE_DICT = {}
-    COUNTRY_NAMESPACE_DICT = get_countries_namespaces()
-    save_dict_to_file(COUNTRY_NAMESPACE_DICT, dict_file_path)
+    local_country_namespace_mapping = {}
+    local_country_namespace_mapping = get_countries_namespaces()
+    save_dict_to_file(local_country_namespace_mapping, dict_file_path)
 
-    logging(COUNTRY_NAMESPACE_DICT)
+    logging(local_country_namespace_mapping)
 
-    return COUNTRY_NAMESPACE_DICT
+    return local_country_namespace_mapping
 
-def generate_COUNTRY_YEAR_DICT(filters):
+def generate_COUNTRY_YEAR_DICT():
     TOTAL_DOWNLOADS = 0
     dict_file_path = f"{here}/downloads/countries_urls.json"
-    COUNTRY_YEAR_DICT = {}
+    local_country_year_mapping = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
-        COUNTRY_YEAR_DICT = load_dict_from_file(dict_file_path)
+        local_country_year_mapping = load_dict_from_file(dict_file_path)
     else:
-        COUNTRY_YEAR_DICT = get_countries_years()
-        for k,v in COUNTRY_YEAR_DICT.items():
-            COUNTRY_YEAR_DICT[k] = [x + "index.html" for x in COUNTRY_YEAR_DICT[k]]
-        save_dict_to_file(COUNTRY_YEAR_DICT, dict_file_path)
+        local_country_year_mapping = get_countries_years()
+        for k,v in local_country_year_mapping.items():
+            local_country_year_mapping[k] = [x + "index.html" for x in local_country_year_mapping[k]]
+        save_dict_to_file(local_country_year_mapping, dict_file_path)
 
     return COUNTRY_YEAR_DICT
 
 def generate_COUNTRY_YEAR_CASES_DICT(filters):
     dict_file_path = f"{here}/downloads/countries_years_urls.json"
-    COUNTRY_YEAR_CASES_DICT = {}
+    local_country_year_cases_mapping = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
-        COUNTRY_YEAR_CASES_DICT = load_dict_from_file(dict_file_path)
+        local_country_year_cases_mapping = load_dict_from_file(dict_file_path)
     else:
-        COUNTRY_YEAR_CASES_DICT = get_year_cases(filters)
-        save_dict_to_file(COUNTRY_YEAR_CASES_DICT, dict_file_path)
+        local_country_year_cases_mapping = get_year_cases(filters)
+        save_dict_to_file(local_country_year_cases_mapping, dict_file_path)
     
-    return COUNTRY_YEAR_CASES_DICT
+    return local_country_year_cases_mapping
    
 def convert_to_html(path, output_pdf):
     logging(f"Start downloading...{path} {output_pdf}")
@@ -404,7 +404,7 @@ async def init(filters, refresh=False):
     global COUNTRY_NAMESPACE_DICT 
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
     global COUNTRY_YEAR_DICT 
-    COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT(filters)
+    COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
 
     global COUNTRY_YEAR_CASES_DICT
     COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT(filters)
