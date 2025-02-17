@@ -101,22 +101,26 @@ def extract_links_from_pdf(pdf_file):
                         urls.append(annot['uri'])
     return urls
 
-def get_year_cases():
+def filter_year(current_year, start_year, end_year):
+    return int(current_year) >= int(start_year) and int(current_year) <= int(end_year)
+
+def get_year_cases(filters):
     year_cases_dict = {}
     for k,v in COUNTRY_YEAR_DICT.items():
         year_cases_dict[k] = {}
         
         for year_url in v:  
             year = year_url.split("/")[-2]
-            file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
-            create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
+            if filter_year(year, filters[k].get("start_year", 0), filters[k].get("end_year", 999999)):
+                file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/indexes.pdf"
+                create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}")
 
-            if FORCE_REFRESH is True or not check_file_exists(file_path):
-                download_html_as_pdf(year_url, file_path)
+                if FORCE_REFRESH is True or not check_file_exists(file_path):
+                    download_html_as_pdf(year_url, file_path)
 
-            urls = extract_links_from_pdf(file_path)
-            urls = [x for x in urls if year in x]
-            year_cases_dict[k][year] = urls
+                urls = extract_links_from_pdf(file_path)
+                urls = [x for x in urls if year in x]
+                year_cases_dict[k][year] = urls
 
     return year_cases_dict
 
@@ -206,13 +210,13 @@ def generate_COUNTRY_YEAR_DICT():
 
     return COUNTRY_YEAR_DICT
 
-def generate_COUNTRY_YEAR_CASES_DICT():
+def generate_COUNTRY_YEAR_CASES_DICT(filters):
     dict_file_path = f"{here}/downloads/countries_years_urls.json"
     COUNTRY_YEAR_CASES_DICT = {}
     if FORCE_REFRESH is False and check_file_exists(dict_file_path):
         COUNTRY_YEAR_CASES_DICT = load_dict_from_file(dict_file_path)
     else:
-        COUNTRY_YEAR_CASES_DICT = get_year_cases()
+        COUNTRY_YEAR_CASES_DICT = get_year_cases(filters)
         save_dict_to_file(COUNTRY_YEAR_CASES_DICT, dict_file_path)
     
     return COUNTRY_YEAR_CASES_DICT
@@ -390,12 +394,12 @@ async def whats_on_objectstore():
 
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
-async def init(filter,refresh=False):
+async def init(filters, refresh=False):
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
 
     global FILTER_COUNTRIES 
-    FILTER_COUNTRIES = [x.lower() for x in filter["countries"]]
+    FILTER_COUNTRIES = [x.lower() for x in filters.keys()]
 
     global COUNTRY_NAMESPACE_DICT 
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()
@@ -403,5 +407,5 @@ async def init(filter,refresh=False):
     COUNTRY_YEAR_DICT = generate_COUNTRY_YEAR_DICT()
 
     global COUNTRY_YEAR_CASES_DICT
-    COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT()
+    COUNTRY_YEAR_CASES_DICT = generate_COUNTRY_YEAR_CASES_DICT(filters)
     
