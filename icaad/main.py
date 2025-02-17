@@ -5,7 +5,6 @@ from sse_starlette import EventSourceResponse
 import json
 from library.web_scraper import download_cases, upload_to_objectstore, init, whats_on_objectstore, objectstore_stats, report_per_country_local
 from library.inference import inference_initiate
-from library.utils import json_decode_config
 
 app = FastAPI()
 
@@ -42,8 +41,8 @@ async def sync():
     return EventSourceResponse(upload_to_objectstore())
 
 @app.get("/v0/pacific/download")
-async def download(encoded_config: str = Query(..., description="JSON-encoded config string"), refresh: bool = Query(False, description="Optional refresh option")):
-    # json_convert = json_decode_config(encoded_config)
+async def download(filters, refresh=False):
+    json_convert = json.loads(filters)
     await init(json_convert, refresh)
     return EventSourceResponse(download_cases())
 
