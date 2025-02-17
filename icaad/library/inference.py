@@ -19,14 +19,14 @@ async def inference_initiate(source):
             text1 += page.extract_text().strip()
 
 
-    with pdfplumber.open(f"/{here}/{config["FE_CATEGORICAL_VARIABLES_FILE"]}") as pdf:
+    with pdfplumber.open(f"/{here}/{config['FE_CATEGORICAL_VARIABLES_FILE']}") as pdf:
         # Extract text from each page
         instructions_cat = 'Prompt: \n'
         for page in pdf.pages:
             instructions_cat += page.extract_text().strip()
 
 
-    with pdfplumber.open(f"/{here}/{config["FE_INSTRUCTIONS_NUANCED_VARIABLES_FILE"]}") as pdf:
+    with pdfplumber.open(f"/{here}/{config['FE_INSTRUCTIONS_NUANCED_VARIABLES_FILE']}") as pdf:
         # Extract text from each page
         instructions_nuanced = 'Prompt: \n'
         for page in pdf.pages:
