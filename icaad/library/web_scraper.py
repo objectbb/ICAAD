@@ -395,7 +395,7 @@ async def init(filter, refresh=False):
     FORCE_REFRESH = refresh  == "True"
 
     global FILTER_COUNTRIES 
-    FILTER_COUNTRIES = [x.lower() for x in filter["countries"]]
+    FILTER_COUNTRIES = [x.lower() for x in filter.keys()]
 
     global COUNTRY_NAMESPACE_DICT 
     COUNTRY_NAMESPACE_DICT = generate_COUNTRY_NAMESPACE_DICT()

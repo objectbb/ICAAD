@@ -43,7 +43,7 @@ async def sync():
 
 @app.get("/v0/pacific/download")
 async def download(encoded_config: str = Query(..., description="JSON-encoded config string"), refresh: bool = Query(False, description="Optional refresh option")):
-    json_convert = json_decode_config(encoded_config)
+    # json_convert = json_decode_config(encoded_config)
     await init(json_convert, refresh)
     return EventSourceResponse(download_cases())
 

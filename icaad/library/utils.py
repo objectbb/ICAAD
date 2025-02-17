@@ -3,26 +3,8 @@ import urllib.parse
 
 
 CONFIG = {
-    # "filters": [
-    #     {
-    #         "country": "Fiji",
-    #         "start_year": 2000,
-    #         "end_year": 2007
-    #     },
-    #     {
-    #         "country": "Tonga",
-    #         "start_year": 2000,
-    #         "end_year": 2007
-    #     },
-    #     {
-    #         "country": "",
-    #         "start_year": 2000,
-    #         "end_year": 2007
-    #     }
-    # ],
-    "countries": ["Fiji", "Tonga"],
-    "start_year": 2000,
-    "end_year": 2007,
+    "Fiji": {"start_year": 2000, "end_year": 2010},
+    "Tonga": {"start_year": 2000, "end_year": 2010},
 }
 
 
