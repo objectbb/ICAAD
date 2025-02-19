@@ -14,10 +14,12 @@ import datetime
 import botocore.session
 import boto3
 from dotenv import load_dotenv
+import random
 
 here = os.path.dirname(os.path.abspath(__file__))
 with open(f'{here}/web_scraper.json') as config_file:
     config = json.load(config_file)
+
 
 ### CONFIG
 YEAR_PREFIX = config["YEAR_PREFIX"]  ## any year starting with "20"
@@ -30,10 +32,12 @@ COUNTRY_NAMESPACE_DICT = {}
 COUNTRY_YEAR_DICT = {}
 COUNTRY_NAMESPACE_URL_TEMPLATE = Template("${base_url}${country_lower}/cases/${country_upper}LawRp/index.html")
 AVAILABLE_COUNTRY_LIST = config["AVAILABLE_COUNTRY_LIST"]
-
+USER_AGENTS = config["USER_AGENTS"]
 global TOTAL_DOWNLOADS
 TOTAL_DOWNLOADS = 0
 
+global retry_delay
+retry_delay = 1
 
 def logging(output):
     print(f"{output} {datetime.datetime.now()}")
@@ -101,7 +105,7 @@ def extract_links_from_pdf(pdf_file):
             if annotations:
                 for annot in annotations:
                     if 'uri' in annot:
-                        urls.append(annot['uri'])
+                        urls.append(annot['uri'])               
     return urls
 
 def get_year_cases():
@@ -118,11 +122,10 @@ def get_year_cases():
 
             if FORCE_REFRESH is True or not check_file_exists(pdf_file):
                # download_html_as_pdf(year_url, file_path)
-                download_html_as_pdf(year_url, html_file, pdf_file)
-
-            urls = extract_links_from_pdf(pdf_file)
-            urls = [x for x in urls if year in x]
-            year_cases_dict[k][year] = urls
+                if download_html_as_pdf(year_url, html_file, pdf_file):
+                    urls = extract_links_from_pdf(pdf_file)
+                    urls = [x for x in urls if year in x]
+                    year_cases_dict[k][year] = urls
 
     return year_cases_dict
 
@@ -131,8 +134,8 @@ def scrape_hyperlinks_to_csv(url, output_csv):
     print(f"scrape_hyperlinks_to_csv {url} {output_csv}")
 
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
-        response.raise_for_status()
+        response = get_http_request(url)
+
         soup = BeautifulSoup(response.content, 'html.parser')
         links = soup.find_all('a')
         with open(output_csv, mode='w', newline='', encoding='utf-8') as file:
@@ -166,31 +169,72 @@ def get_countries_years():
         year_dict[k] = COUNTRY_NAMESPACE_URL_TEMPLATE.safe_substitute(base_url=BASE_URL, country_lower=v.lower(), country_upper=v.upper())
     create_directory_if_not_exists(f"{here}/downloads/countries")
     for k,v in year_dict.items():
-        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/indexes"
-        pdf_file = f"{file_path}.pdf"
+        file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/index"
+        pdf_file = f"{file_path}es.pdf"
         html_file = f"{file_path}.html"
         
         create_directory_if_not_exists(f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}")
-
+        
         if FORCE_REFRESH is True or not check_file_exists(pdf_file):
             #download_html_as_pdf(v, file_path)
-            download_html_as_pdf(v, html_file, pdf_file)
+            if download_html_as_pdf(v, html_file, pdf_file):
 
-        urls = extract_links_from_pdf(pdf_file)
-        urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
-        year_dict[k] = urls
+                urls = extract_links_from_pdf(pdf_file)
+                urls = [x for x in urls if x.startswith(v.replace("index.html", YEAR_PREFIX))]
+                year_dict[k] = urls
+
     return year_dict
   
-def download_html_as_pdf(url, html_file, output_pdf):
-    logging(f"Start downloading...{url} {html_file} {output_pdf}")
+def get_http_request(url):
+    global retry_delay
 
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
+
+        response = requests.get(url, headers={'User-Agent': random.choice(USER_AGENTS)})
         response.raise_for_status()
-        with open(html_file, mode='w', encoding='utf-8') as file:
-            file.write(response.text)
-        pdfkit.from_file(html_file, output_pdf, verbose=True)
-        return True
+        
+        if response.status_code == 429:  # Rate limit hit
+            logging("Rate limit reached, backing off...")
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Double the delay each time rate limit is hit
+        else:
+            logging(response.status_code)
+            retry_delay = 1 
+
+        return response
+    except Exception as e:
+        retry_delay *= 2
+        logging(f"Error occurred: retry_delay: {retry_delay} {e}")
+
+def pdfkit_request(url, output_pdf):
+
+    global retry_delay
+
+    try:
+        options = {
+            'custom-header': [
+                ('User-Agent', random.choice(USER_AGENTS))
+                ]
+            }
+            
+        time.sleep(retry_delay)
+        result = pdfkit.from_url(url, output_pdf, options=options)
+
+        if result:
+            logging(f'{output_pdf} ... saved')
+            retry_delay = 1
+            return True
+
+    except Exception as e:
+        retry_delay *= 2
+        logging(f"Error occurred: retry_delay: {retry_delay} {e}")
+     
+def download_html_as_pdf(url, html_file, output_pdf):
+    logging(f"Start downloading...{url} {output_pdf}")
+
+    try:
+        return pdfkit_request(url, output_pdf)
+
     except Exception as e:
         logging(f"Error occurred: {e}")
         return False
@@ -249,7 +293,7 @@ def download_cases():
             for year, urls in v.items():
                 for url in urls:
                     case_num = url.split("/")[-1].split(".")[0]
-                    file_path = "{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}"
+                    file_path = f"{here}/downloads/countries/{COUNTRY_NAMESPACE_DICT[k]}/{year}/cases/{case_num}"
                     pdf_file = f"{file_path}.pdf"
                     html_file = f"{file_path}.html"
 
@@ -257,14 +301,13 @@ def download_cases():
 
                     if FORCE_REFRESH is True or not check_file_exists(pdf_file):
                         st = time.perf_counter()
-                        download_html_as_pdf(url, html_file, pdf_file)
-                        dt = time.perf_counter() - st
-                        hours, minutes, seconds = convert_to_hms(dt)
-                        download_counter+=1
-                        yield f"{download_counter}/{TOTAL_DOWNLOADS} {file_path} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(html_file)}"
-
+                        if download_html_as_pdf(url, html_file, pdf_file):
+                            dt = time.perf_counter() - st
+                            hours, minutes, seconds = convert_to_hms(dt)
+                            download_counter+=1
+                            yield f"{download_counter}/{TOTAL_DOWNLOADS} {pdf_file} Download time: {hours} hours, {minutes} minutes, {seconds} seconds {file_size_string(pdf_file)}"
+    
             status_msg = f"All Cases for {k} for year {year} have been downloaded."
-
             logging(status_msg)
             yield f"{status_msg}  {datetime.datetime.now()}"
         else:
@@ -396,6 +439,7 @@ async def whats_on_objectstore():
     yield f"{return_msg} Duration: {hours} hours, {minutes} minutes, {seconds} seconds"
 
 async def init(filter,refresh=False):
+
     global FORCE_REFRESH
     FORCE_REFRESH = refresh  == "True"
 

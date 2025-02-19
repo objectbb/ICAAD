@@ -2,22 +2,46 @@ from openai import OpenAI
 import pdfplumber
 import json
 import os
+from dotenv import load_dotenv
+import pandas as pd
+from library.utility.build_pyd_class import add_field
+from pydantic import BaseModel
+
+from langchain_community.llms import Ollama
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import JsonOutputParser
+from pydantic.v1 import ValidationError
 
 here = os.path.dirname(os.path.abspath(__file__))
 with open(f'/{here}/inference.json') as config_file:
     config = json.load(config_file)
 
-API_KEY = config["API_KEY"]  ## fill your API Key here.
+load_dotenv()
+API_KEY = os.environ.get("OPENAI_API_KEY")  ## fill your API Key here.
 
-# ## Read File Data
+class FeatureCaseModel(BaseModel):
+    name: str
 
-async def inference_initiate(source):
+def load_features_model():
+    # ## Read File Data
+    # Reads the CSV file into a DataFrame
+    df = pd.read_csv("Features.csv", usecols=['Feature Name','Feature Type','Prompt','Validation for LLM','Notes/Comments', 'Default Value'])
+    filtered_df = df.loc[df['Prompt'].notna()]
+
+    prompt = ""
+    for index, row in df.iterrows():
+        add_field(FeatureCaseModel, row['Feature Name'], str, row['Prompt'],row['Default Value'])
+        prompt += f"{row['Feature Name']}-{row['Prompt']}, "
+
+    return prompt
+
+def load_pfds_prompt(source):
     with pdfplumber.open(f"/{here}/sample_cases/{source}") as pdf:
         # Extract text from each page
         text1 = 'Data: \n'
         for page in pdf.pages:
             text1 += page.extract_text().strip()
-
 
     with pdfplumber.open(f"/{here}/{config["FE_CATEGORICAL_VARIABLES_FILE"]}") as pdf:
         # Extract text from each page
@@ -25,50 +49,58 @@ async def inference_initiate(source):
         for page in pdf.pages:
             instructions_cat += page.extract_text().strip()
 
-
     with pdfplumber.open(f"/{here}/{config["FE_INSTRUCTIONS_NUANCED_VARIABLES_FILE"]}") as pdf:
         # Extract text from each page
         instructions_nuanced = 'Prompt: \n'
         for page in pdf.pages:
             instructions_nuanced += page.extract_text().strip()
 
-
     prompt_cat = text1 + ' ' + instructions_cat
     prompt_nuanced = text1 + ' ' + instructions_nuanced
-
+    return prompt_cat + prompt_nuanced
+  
+def run_query(prompt):
 
     client = OpenAI(
         api_key=API_KEY,
     )
 
-
-    # ## Fourth Run (8/5/24)
-
-    # ### Case-1 (State v Kuman 2000 PNGLR 313):
-
     chat_completion = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
-                "content": prompt_cat,
+                "content": prompt,
             }
         ],
         model="gpt-3.5-turbo",
     )
 
-  
+    return f"{chat_completion.choices[0].message.content}"
 
-    chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": prompt_nuanced,
-            }
-        ],
-        model="gpt-3.5-turbo",
+def parse(instructions, query):
+    llm = Ollama(model="gpt-3.5-turbo")
+    parser = JsonOutputParser(pydantic_object=FeatureCaseModel)
+
+    # Define a prompt template for assessing tweet content
+    # and include the formatting instructions 
+    prompt = PromptTemplate(
+        template="""
+        {{instructions}}
+        {format_instructions}
+        
+        {query_text}
+        """,
+        input_variables=["query"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
-    return f"{chat_completion.choices[0].message.content} {chat_completion.choices[0].message.content}"
+    # Construct a Langchain Chain to connect the prompt template with the LLM and Pydantic parser
+    chain = prompt | llm | parser
+    result = chain.invoke({"query_text": query})
+    
+    return result
 
-
-#"1.1.1 Case Citation - State v Kuman [2000] PNGLR 313\n1.1.2 Court’s Jurisdiction - CourtofFirstInstance\n1.1.3 Charge(s) - Rape (Section 6 of the Criminal Code Act) and Intentional Grievous Bodily Harm (Section 319 of the Criminal Code Act)\n1.1.4 Charge category - Sexual Violence\n1.1.5 First time offender - No\n1.1.6 First time offender, agree/disagree? - Disagree\n1.1.7 Starting Sentence - 5 years\n1.1.8 Alternative Starting Sentence - 5 years\n1.1.9 Aggravating factors - 2 years\n1.1.10 Mitigating factors - 1 year\n1.1.11 Final sentence - 6 years\n1.1.12 Customary practices - No\n1.1.13 Gender stereotypes - No\n1.1.14 Sole breadwinner - No\n1.1.15 Other factor(s) - No\n1.1.16 Type of gender discrimination - N\n1.1.17 Sentence reduction 1 - 0\n1.1.18 Sentence reduction 2 - 0\n1.1.19 Final sentence (including suspended sentence) - 6 years\n1.1.20 Positive judicial statements (women’s rights) - The judicial officer emphasized upholding the human rights of women and girls in handling Sexual or Gender Based Violence cases.\n1.1.21 Negative judicial statements (women’s rights) - There were no negative judicial statements regarding women's rights in this case. 1.1.1 Case Citation - State v Kuman [2000] PNGLR 313\n1.1.2 Court’s Jurisdiction - CourtofFirstInstance\n1.1.3 Charge(s) - Rape (Section 6 of the Criminal Code Act) and Intentional Grievous Bodily Harm (Section 319 of the Criminal Code Act)\n1.1.4 Charge category - Sexual Violence\n1.1.5 First time offender - No\n1.1.6 First time offender, agree/disagree? - Disagree\n1.1.7 Starting Sentence - 5 years\n1.1.8 Alternative Starting Sentence - 5 years\n1.1.9 Aggravating factors - 2 years\n1.1.10 Mitigating factors - 1 year\n1.1.11 Final sentence - 6 years\n1.1.12 Customary practices - No\n1.1.13 Gender stereotypes - No\n1.1.14 Sole breadwinner - No\n1.1.15 Other factor(s) - No\n1.1.16 Type of gender discrimination - N\n1.1.17 Sentence reduction 1 - 0\n1.1.18 Sentence reduction 2 - 0\n1.1.19 Final sentence (including suspended sentence) - 6 years\n1.1.20 Positive judicial statements (women’s rights) - The judicial officer emphasized upholding the human rights of women and girls in handling Sexual or Gender Based Violence cases.\n1.1.21 Negative judicial statements (women’s rights) - There were no negative judicial statements regarding women's rights in this case."
+async def inference_initiate(source):
+    general_instructions = f"Populate the fields in the json object <Feature Name>:<Value> using the below variables mentioned. {load_features_model()} Do not output as a text table. If there are multiple charges, answer the below questions based on the highest/most serious charge."
+    query = load_pfds_prompt(source) 
+    return run_query(query + general_instructions)

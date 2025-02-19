@@ -1,0 +1,83 @@
+Feature Name,Feature Group,Possible Values,Default Value,Feature Type,Validation for LLM,Notes/Comments,Addiitonal comments,,,Feature,Feature Group,Possible Values,Default Value,Prompt,version
+doc_id,Case Identification,Alphanumeric string,N/A,String,Must be unique for each case,Identifier for each case,,,,doc_id,BasicFeatureEnum,None,unknown,,
+paclii_id,Case Identification,Numeric/Alphanumeric case id assigned to the case by Paclii,N/A,String,Must be a valid identifier,Link or ID from the Pacific Legal Information Institute,,,,paclii_id,BasicFeatureEnum,None,unknown,,
+paclii_url,Case Identification,URL,NA,URL,Must be a valid URL,,,,,,,,,,
+case_citation,Case Identification,Text,N/A,String,Extract exactly as it appears in the case document,Official case reference,,,,case_citation,CaseInfoEnum,None,unknown,,
+is_victim_female,Applicability,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""","If ""No"", the case is not applicable",,,,is_victim_female,BasicFeatureEnum,"yes, no",no,,
+is_sentencing_decision,Applicability,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""","If ""No"", the case is not applicable",,,,is_sentencing_decision,BasicFeatureEnum,"yes, no",no,Sentencing Decision?,1.1.2
+is_post_2000,Applicability,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""","If ""No"", the case is not applicable",,,,is_post_2000,BasicFeatureEnum,"yes, no",no,,
+is_applicable_case,Applicability,"Yes, No",N/A,Boolean,"If any of the above are ""No"", then this is ""No""",Determines if case should be analyzed,"If is_applicable_case is ""Yes"", then all subsequent fields should be attempted to extract, following validation rules.",,,is_applicable_case,BasicFeatureEnum,"yes, no",no,Applicable Case?,1.1.1
+applicability_reason,Applicability,Reason text,N/A,String,"Required if is_applicable_case is ""No""",Reason why case is not applicable,,,,,,,,,
+case_type,Case Information,"SV, DV, Both, Murder/Manslaughter",N/A,Categorical,Must be one or more of the specified values,Type of GBV case,"Could break down into is_sexual_violence
+is_domestic_violence, is_murder_manslaughter. Both is when sexual violence is perpetrated by a family member.",,,case_type,CaseInfoEnum,"sexual_violence, domestic_violence, sexual_domestic_violence, manslaughter_murder",sexual_violence,Type of Case,1.1.7
+date,Case Information,dd/mm/yyyy,N/A,Date,Must be in dd/mm/yyyy format,Date of sentencing decision,,,,date,CaseInfoEnum,None,unknown,Date,
+country,Case Information,Country name,N/A,String,Must be a valid country name,"Relevant Pacific Countries: Fiji, Kiribati, Nauru, Palau, Marshall Islands, Micronesia, Samoa, Solomon Islands, Vanuatu, Tonga, Tuvalu, and Papua New Guinea",,,,country,CaseInfoEnum,None,unknown,Country,1.1.4
+city_district_of_hearing,Case Information,"Text or ""Unknown""","""Unknown""",String,"If not available, default to ""Unknown""",Location of the hearing,,,,city_district_of_hearing,CaseInfoEnum,None,unknown,City/District,1.1.5
+is_appellate_case,Case Information,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""",,,,,is_appellate_case,CaseInfoEnum,"yes, no",no,Appellate case,1.1.6
+judicial_officer_name,Case Information,FirstName LastName,N/A,String,"Extract first and last name only, no titles",,,,,judicial_officer_name,CaseInfoEnum,None,unknown,Judicial Officer’s Name,1.1.8
+courts_jurisdiction,Case Information,"Court of First Instance, Appellate Court, Supreme Court",N/A,Categorical,Must be one of the specified values,,,,,courts_jurisdiction,CaseInfoEnum,"court of first instance, appellate court, supreme court, unknown",unknown,,
+charges,Case Information,Text,N/A,String,Extract specific charges with legal references,Include statutes and sections,Would like to refer to the country's legislation and populate the exact charge ,,,charges,CaseInfoEnum,None,unknown,,
+charge_category,Case Information,Predefined categories,N/A,Categorical,Must match one of the predefined categories,Map charges to categories,"Grouping can also be done later manually. in that case, charge category = charge",,,charge_category,CaseInfoEnum,None,unknown,,
+maximum_sentence,Case Information,Numerical value (years),N/A,Float,Must be numerical,Maximum possible sentence for the charge,refer the country's legislation to populate this,,,,,,,,
+is_anonymity_maintained,Anonymity,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""",Whether victim's identity is protected,"could break it down into is name mentioned, and is relationship to the perpetrator defined in case known relative, is address specific, etc.",,,is_anonymity_maintained,CaseInfoEnum,"yes, no, unknown",unknown,Anonymity,1.1.9
+victim_gender,Victim Information,"Female, Other",N/A,Categorical,"Must be ""Female"" or ""Other""","Multiple victims = Other, If Male victim then not an applicable case",,,,victim_gender,VictimInfoEnum,"male, female, other, unknown",unknown,,
+victim_age_at_offense,Victim Information,Integer (>0),N/A,Integer,Must be a positive integer,Age at time of offense,,,,victim_age_at_offense,VictimInfoEnum,None,0,,
+victim_is_adult_at_offense,Victim Information,"Adult, Child",N/A,Categorical,"""Child"" if age <18, else ""Adult""","Based on age, not court's treatment",,,,victim_is_adult_at_offense,VictimInfoEnum,"yes, no, unknown",unknown,,
+victim_identify_as,Victim Information,"LGBTQI categories or ""No""",No,Categorical,"Only ""Yes"" if explicitly mentioned",LGBTQI status,,,,victim_identify_as,VictimInfoEnum,None,unknown,,
+victim_disability,Victim Information,"Physical, Mental, Both, No",No,Categorical,"Only ""Yes - type"" if explicitly mentioned",,,,,victim_disability,VictimInfoEnum,"physical, mental, physical_mental, no",no,,
+perpetrator_gender,Perpetrator Information,"Male, Female, Other",N/A,Categorical,Must be one of the specified values,,,,,perpetrator_gender,PerpetratorInfoEnum,"male, female, other, unknown",unknown,,
+perpetrator_age_at_offense,Perpetrator Information,Integer (>0),N/A,Integer,Must be a positive integer,"Not age at the time of case discussion, back calculate if required",,,,perpetrator_age_at_offense,PerpetratorInfoEnum,None,0,,
+perpetrator_is_adult_at_offense,Perpetrator Information,"Adult, Child",N/A,Categorical,"""Child"" if age <18, else ""Adult""",,,,,perpetrator_is_adult_at_offense,PerpetratorInfoEnum,"yes, no, unknown",unknown,,
+perpetrator_is_known_to_victim,Perpetrator Information,"Yes, No, Unknown",Unknown,Categorical,"If unclear, default to ""Unknown""",,,,,perpetrator_is_known_to_victim,PerpetratorInfoEnum,"yes, no, unknown",unknown,,
+perpetrator_relationship_with_victim,Perpetrator Information,Text,"""None""",String,"Describe relationship or ""None""",,,,,perpetrator_relationship_with_victim,PerpetratorInfoEnum,None,unknown,,
+perpetrator_guilt,Perpetrator Information,"Plea of Guilt, Finding of Guilt",N/A,Categorical,Must be one of the specified values,,,,,perpetrator_guilt,PerpetratorInfoEnum,"plead_guilty, found_guilty, unknown",unknown,,
+perpetrator_first_time_offender_case,Perpetrator Information,"Yes, No, Unknown",N/A,Categorical,Based on court's determination,"No – If the Court determines that the perpetrator is not a first time offender (i.e., if there are previous conviction(s) (even if it's a different type of crime) or if facts of the case show a history or pattern of violent acts/abuse) 
+Yes – If the Court determines that the perpetrator is a first time offender (i.e., if there are no prior conviction(s))",,,,perpetrator_first_time_offender_case,PerpetratorInfoEnum,"yes, no, unknown",unknown,,
+perpetrator_first_time_offender_self,Perpetrator Information,"Yes, No",N/A,Boolean,"If you disagree with court, specify your assessment","if you disagree with the Court’s determination one way or the other: For example, no convictions, but evidence of past abuse or other criminal conduct even if not resulting in a conviction or vice versa.","perpetrator_first_time_offender_self allow capturing disagreements with the court's determination, which may require additional logic.",,,perpetrator_first_time_offender_self,PerpetratorInfoEnum,"agree, disagree",agree,,
+perpetrator_previous_convictions,Perpetrator Information,Text,N/A,String,Extract details if available,Previous convictions,shows the reason for the above response,,,,,,,,
+pathology_report,Reports and Evidence,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""",Whether pathology report was referenced,,,,pathology_report,AtHearingEnum,"yes, no",no,,
+medical_report,Reports and Evidence,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""","a “victim impact assessment” constitutes a medical report, so long as it appears that a medical professional was involved, and was not solely derived from a police interview. ",,,,medical_report,AtHearingEnum,"yes, no",no,,
+social_enquiry_report,Reports and Evidence,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""",Addition,,,,social_enquiry_report,AtHearingEnum,"yes, no",no,,
+protection_order,Sentencing Information,"Yes - Victim, Yes - Perpetrator, No",N/A,Categorical,Must be one of the specified values,"If entered against the perpetrator to avoid the victim, select “Yes – Victim.” If entered against the victim to avoid the perpetrator, select “Yes-Perpetrator.” If no protection order is mentioned or entered, select “No.”",,,,protection_order,SentencingBasicEnum,"yes, no",no,,
+starting_sentence,Sentencing Information,Float (years),N/A,Float,Must be numerical,"In years, including decimals",,,,starting_sentence,SentencingBasicEnum,None,0,,
+alternative_starting_sentence,Sentencing Information,"Float (years) or ""N/A""",Blank,Float,Use if starting sentence is unclear,,back calculate from final sentence if starting sentence is not given ,,,alternative_starting_sentence,SentencingBasicEnum,None,0,,
+aggravating_factors,Sentencing Information,Float (years),Blank,Float,Must be numerical,Total time added,,,,aggravating_factors,SentencingBasicEnum,None,0,,
+mitigating_factors,Sentencing Information,Float (years),Blank,Float,Must be numerical,Total time reduced (exclude remand time),,,,mitigating_factors,SentencingBasicEnum,None,0,,
+final_sentence,Sentencing Information,Float (years),0,Float,Calculate: Starting + Aggravating - Mitigating,"If the Court does not render a decision on sentencing, the case is not applicable (see above). 
+If the Court ultimately suspends a sentence fully or partially, the final sentence amount should still be entered here, even if it is not served in custody.
+If the final sentence is life imprisonment or the death penalty, enter “999.”","This number may not be the same as the ultimate sentence as stated by the Court, depending on whether the Court considered time served in remand as a mitigating factor.
+",,,final_sentence,SentencingBasicEnum,None,0,,
+sentence_suspended,Sentencing Information,"Yes - Fully, Yes - Partially, No",Blank,Categorical,Must be one of the specified values,"If ""Yes - Fully"", prison_sentence is ""No""","if sentence_suspended is ""Yes - Fully"", then prison_sentence must be ""No""",,,sentence_suspended,SentencingSuspensionsEnum,"fully, partially, no",no,,
+sentence_reduction2,Sentencing Information,Float (years),Blank,Float,Amount of sentence suspended,,,,,sentence_reduction2,SentencingContentiousEnum,None,0,,
+prison_sentence,Sentencing Information,"Yes, No",N/A,Boolean,"Must be ""Yes"" or ""No""",,,,,prison_sentence,SentencingSuspensionsEnum,"yes, no, unknown",unknown,,
+final_sentence_including_suspension,Sentencing Information,Float (years),0,Float,Final sentence minus suspended time,Actual time to be served,,,,final_sentence_including_suspension,SentencingSuspensionsEnum,None,0,,
+life_death_penalty,Sentencing Information,"Life Imprisonment, Death Penalty, N/A",N/A,Categorical,"Must be ""Yes"",""No"" or ""N/A""",,,,,life_death_penalty,SentencingSuspensionsEnum,"life, death, na",na,,
+cumulative_concurrent_sentence,Sentencing Information,"Yes - Concurrent, No, Unknown",Unknown,Categorical,"Yes - Cummulative, Yes - Concurrent, N/A",,,,,cumulative_concurrent_sentence,SentencingSuspensionsEnum,"cumulative, concurrent, unknown",unknown,,
+other_form_punishment,Sentencing Information,Text,"""None""",String,"Describe other punishments or ""None""",,,,,other_form_punishment,SentencingSuspensionsEnum,None,none,,
+fine_bond,Sentencing Information,"Yes, No, Unknown",Unknown,Categorical,Must be one of the specified values,,,,,fine_bond,SentencingSuspensionsEnum,"yes, no, unknown",unknown,,
+time_served_on_remand,Sentencing Information,Float (years),0,Float,Must be numerical,Addition,,,,,,,,,
+customary_practices,Contentious Factors,"Yes - Defence, Yes - Judicial Officer, Yes - Both, No, Unknown",No,Categorical,Must be one of the specified values,"Whether raised during sentencing. (e.g., a formal apology, compensation, banishment from the village, bride-price","Enter “Yes,” even if the Court did not ultimately reduce the sentence based on customary practices. 
+If there is no mention of customary practices, enter “No.” 
+If unsure whether customary practices are being raised, enter “Unknown.” 
+Do NOT enter “Unknown” just because you see no indication one way or the other. In that event, enter “No.”
+",,,customary_practices,SentencingContentiousEnum,None,unknown,,
+gender_stereotypes,Contentious Factors,"Yes - Defence, Yes - Judicial Officer, Yes - Both, No, Unknown",No,Categorical,Must be one of the specified values,"Whether raised during sentencing. Example: he notion that men are the head of the household, or that women exist to fulfil the desires of men",,,,gender_stereotypes,SentencingContentiousEnum,None,unknown,,
+other_factors,Contentious Factors,"Yes - Defence, Yes - Judicial Officer, Yes - Both, No, Unknown",No,Categorical,Must be one of the specified values,"Whether raised during sentencing - Examples: Excessive consideration of the educational and career prospects of the individual
+That the perpetrator attended church regularly, or that he was to be baptised
+That the perpetrator did not infect the victim with an STD
+That the perpetrator did not inflict further injury on the victim, cause physical harm, or torture the victim
+That the perpetrator was drunk (although this argument is frequently rejected by the reviewing judicial officer)
+That the victim did not become pregnant
+Blaming the parents of the victim for not looking after their children and failing to prevent the crime
+",,,,other_factors,SentencingContentiousEnum,None,unknown,,
+is_sole_breadwinner,Contentious Factors,"Yes, No",No,Boolean,"Must be ""Yes"" or ""No""","Only ""Yes"" if it resulted in sentence reduction","if yes, then gender_discrimination_type must include gender_sterotyoes",,,is_sole_breadwinner,SentencingContentiousEnum,"yes, no",no,,
+gender_discrimination_type,Contentious Factors,"Yes - Reconciliation/Customary Practice, Yes - Gender Stereotypes, Yes - Other Contentious Factor(s), No, Unknown",No,Categorical,Select all that apply,"If there was a sentence reduction, was it based at least partly on customary practice(s) (e.g., formal and informal reconciliation/forgiveness/apology practices; gender stereotype(s); other contentious factor(s)? 
+",,,,gender_discrimination_type,SentencingContentiousEnum,None,unknown,,
+sentence_reduction1,Contentious Factors,Float (years),Blank,Float,Must be numerical,"If there was a sentence reduction based on customary practice(s), gender stereotype(s), other contentious factors, or a combination of these factors, what was the specific amount of the reduction resulting from these attitudes?",,,,sentence_reduction1,SentencingContentiousEnum,None,0,,
+positive_judicial_statements,Contentious Factors,Text,N/A,String,Extract relevant statements,,,,,positive_judicial_statements,SentencingSuspensionsEnum,None,unknown,,
+negative_judicial_statements,Contentious Factors,Text,N/A,String,Extract problematic statements,,,,,negative_judicial_statements,SentencingSuspensionsEnum,None,unknown,,
+sentence_reduction_due_to_guilty_plea,Contentious Factors,Float (years),N/A,Float,Must be numerical or blank,Addition,,,,,,,,,
+sentence_reduction_due_to_fto,Contentious Factors,Float (years),N/A,Float,Must be numerical or blank,Addition,,,,,,,,,
+sentence_reduction_due_to_delay,Contentious Factors,Float (years),N/A,Float,Must be numerical or blank,Addition,,,,,,,,,
+delay_in_prosecution_used_as_mitigation,Contentious Factors,"Yes, No",No,Boolean,"Must be ""Yes"" or ""No""",,,,,,,,,,
+notes,Notes,Text,N/A,String,N/A,Any additional comments,,,,notes,SentencingSuspensionsEnum,None,unknown,,
